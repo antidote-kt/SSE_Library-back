@@ -1,0 +1,10 @@
+openapi: 3.0.3
+info:
+  title: 软工资源共享平台 API
+  description: 软工资源共享平台后端RESTful API文档
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8080/api
+    description: 开发环境
+

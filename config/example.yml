@@ -1,0 +1,20 @@
+# 将本文件改成config.yml
+app:
+  name: SSE_Library-back
+  port: :8080
+
+datasource:
+  database: sse-library
+  host: localhost
+  port: 3306
+  username: root
+  password: 123456
+  charset: utf8mb4
+
+bucket:
+  bucketName: your-bucket-name
+  appID: your-app-id
+  region: ap-guangzhou
+  domain: myqcloud.com
+  secretID: your-secret-id
+  secretKey: your-secret-key
