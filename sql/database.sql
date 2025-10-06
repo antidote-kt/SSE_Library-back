@@ -8,7 +8,7 @@ CREATE TABLE users (
    status varchar(20) DEFAULT 'active' COMMENT '用户状态：active-正常使用，disabled-被禁用无法登录',
    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '用户注册时间',
    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '用户信息最后修改时间',
-   deleted_at TIMESTAMP NULL DEFAULT NULL COMMENT '软删除标记，（NULL表示未删除）',
+   deleted_at TIMESTAMP NULL DEFAULT NULL COMMENT '软删除标记，（NULL表示未删除）'
 ) COMMENT='用户基础信息表';
 
 CREATE TABLE favorites (
@@ -63,7 +63,7 @@ CREATE TABLE documents (
    introduction TEXT COMMENT '文档简介，描述文档内容和特点',
    create_year VARCHAR(10) COMMENT '出版年份，仅书籍类型需要',
    status varchar(20) DEFAULT 'audit' COMMENT '文档状态：open-公开可见，audit-待审核，deleted-已删除',
-   readCounts INT DEFAULT 0 COMMENT '浏览次数统计',
+   read_counts INT DEFAULT 0 COMMENT '浏览次数统计',
    collections INT DEFAULT 0 COMMENT '收藏次数统计',
    url VARCHAR(500) NOT NULL COMMENT '下载/预览链接',
    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '文档上传时间',
@@ -78,7 +78,7 @@ CREATE TABLE document_tags (
    tag_name VARCHAR(50) NOT NULL COMMENT '标签名称',
    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '标签创建时间',
    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-   deleted_at TIMESTAMP NULL DEFAULT NULL COMMENT '软删除标记，（NULL表示未删除）',
+   deleted_at TIMESTAMP NULL DEFAULT NULL COMMENT '软删除标记，（NULL表示未删除）'
 ) COMMENT='文档标签表';
 
 CREATE TABLE document_tag_map (
@@ -101,7 +101,7 @@ CREATE TABLE courses (
      url VARCHAR(500) COMMENT '部分课程视频链接',
      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '课程创建时间',
      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '课程信息最后更新时间',
-    deleted_at TIMESTAMP NULL DEFAULT NULL COMMENT '软删除标记，（NULL表示未删除）',
+     deleted_at TIMESTAMP NULL DEFAULT NULL COMMENT '软删除标记，（NULL表示未删除）'
 ) COMMENT='课程信息表';
 
 CREATE TABLE categories (
