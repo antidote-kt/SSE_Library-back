@@ -6,6 +6,8 @@ require (
 	github.com/gin-gonic/gin v1.10.1
 	github.com/spf13/viper v1.21.0
 	github.com/tencentyun/cos-go-sdk-v5 v0.7.69
+	gorm.io/driver/mysql v1.6.0
+	gorm.io/gorm v1.31.0
 )
 
 require (
@@ -52,6 +54,4 @@ require (
 	golang.org/x/text v0.29.0 // indirect
 	google.golang.org/protobuf v1.36.9 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	gorm.io/driver/mysql v1.6.0 // indirect
-	gorm.io/gorm v1.31.0 // indirect
 )

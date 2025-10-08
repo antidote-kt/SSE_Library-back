@@ -27,7 +27,9 @@ func InitDatabase() *gorm.DB {
 		database,
 		charset)
 
-	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
+	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{
+		DisableForeignKeyConstraintWhenMigrating: true,
+	})
 	if err != nil {
 		log.Fatalf("数据库连接失败: %v", err)
 	}

@@ -15,6 +15,7 @@ type Course struct {
 	Duration    int            `json:"duration"`
 	Thumbnail   string         `gorm:"type:varchar(500)" json:"thumbnail"`
 	URL         string         `gorm:"type:varchar(500)" json:"url"`
+	Documents   []Document     `gorm:"foreignKey:CourseID"`
 	CreatedAt   time.Time      `gorm:"autoCreateTime" json:"created_at"`
 	UpdatedAt   time.Time      `gorm:"autoUpdateTime" json:"updated_at"`
 	DeletedAt   gorm.DeletedAt `gorm:"index" json:"-"`
