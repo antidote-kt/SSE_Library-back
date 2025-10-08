@@ -40,12 +40,14 @@ type ModifyDocumentDTO struct {
 	Cover      *multipart.FileHeader `form:"cover,omitempty"`
 	CreateYear *string               `form:"createYear,omitempty"`
 	// 资料id
-	DocumentID uint64   `form:"document_id" binding:"required"`
-	ISBN       *string  `form:"ISBN"`
-	Name       *string  `form:"name,omitempty"`
-	Tags       []string `form:"tags,omitempty"`
-	Type       *string  `form:"type,omitempty"`
-	UploadTime *string  `form:"uploadTime,omitempty"`
+	DocumentID   uint64   `form:"document_id" binding:"required"`
+	ISBN         *string  `form:"ISBN"`
+	Name         *string  `form:"name,omitempty"`
+	Tags         []string `form:"tags,omitempty"`
+	Type         *string  `form:"type,omitempty"`
+	CourseID     *uint64  `form:"courseId,omitempty"`
+	Introduction *string  `form:"introduction,omitempty"`
+	UploadTime   *string  `form:"uploadTime,omitempty"`
 }
 type AdminModifyDocumentDTO struct {
 	Author     *string               `form:"author,omitempty"`
@@ -54,16 +56,18 @@ type AdminModifyDocumentDTO struct {
 	Cover      *multipart.FileHeader `form:"cover,omitempty"`
 	CreateYear *string               `form:"createYear,omitempty"`
 	// 资料id
-	DocumentID uint64   `form:"document_id" binding:"required"`
-	ISBN       *string  `form:"ISBN"`
-	Name       *string  `form:"name,omitempty"`
-	Tags       []string `form:"tags,omitempty"`
-	Type       *string  `form:"type,omitempty"`
-	UploadTime *string  `form:"uploadTime,omitempty"`
+	DocumentID   uint64   `form:"document_id" binding:"required"`
+	ISBN         *string  `form:"ISBN"`
+	Name         *string  `form:"name,omitempty"`
+	Tags         []string `form:"tags,omitempty"`
+	Type         *string  `form:"type,omitempty"`
+	CourseID     *uint64  `form:"courseId,omitempty"`
+	Introduction *string  `form:"introduction,omitempty"`
+	UploadTime   *string  `form:"uploadTime,omitempty"`
 }
 type AdminModifyDocumentStatusRequest struct {
-	DocumentID uint64  `json:"document_id"`
-	Name       *string `json:"Name,omitempty"`
-	NewStatus  string  `json:"newStatus"`
-	Type       string  `json:"type"`
+	DocumentID uint64  `form:"document_id"`
+	Name       *string `form:"name,omitempty"`
+	Status     *string `form:"status"`
+	Type       *string `form:"type"`
 }

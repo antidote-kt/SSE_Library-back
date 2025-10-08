@@ -43,10 +43,31 @@ func DeleteDocumentTagByDocumentIDWithTx(tx *gorm.DB, documentID uint64) error {
 
 func GetDocumentTagByDocumentID(documentID uint64) ([]models.Tag, error) {
 	db := config.GetDB()
-	var document models.Document
-	err := db.Preload("Tags").First(&document, documentID).Error
+
+	// 通过中间表查询关联的标签ID
+	var documentTags []models.DocumentTag
+	err := db.Where("document_id = ?", documentID).Find(&documentTags).Error
 	if err != nil {
-		return nil, fmt.Errorf("获取文档失败: %v", err)
+		return nil, fmt.Errorf("查询文档标签关联失败: %v", err)
 	}
-	return document.Tags, nil
+
+	// 提取标签ID
+	var tagIDs []uint64
+	for _, docTag := range documentTags {
+		tagIDs = append(tagIDs, docTag.TagID)
+	}
+
+	// 如果没有关联标签，返回空数组
+	if len(tagIDs) == 0 {
+		return []models.Tag{}, nil
+	}
+
+	// 查询标签信息，使用DISTINCT确保不重复
+	var tags []models.Tag
+	err = db.Where("id IN ?", tagIDs).Find(&tags).Error
+	if err != nil {
+		return nil, fmt.Errorf("查询标签失败: %v", err)
+	}
+
+	return tags, nil
 }

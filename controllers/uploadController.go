@@ -27,30 +27,35 @@ func UploadFile(c *gin.Context) {
 	// 1. 绑定并验证请求参数
 	if err := bindAndValidateRequest(c, &req); err != nil {
 		response.Fail(c, http.StatusBadRequest, nil, err.Error())
+		return
 	}
 
 	// 2. 上传主文件
 	fileURL, err := utils.UploadMainFile(req.File, req.Category)
 	if err != nil {
-		response.Fail(c, http.StatusInternalServerError, nil, "上传文件失败"+err.Error())
+		response.Fail(c, http.StatusInternalServerError, nil, "上传文件失败")
 		return
 	}
-
+	var coverURL string
 	// 3. 上传封面图片（如果有）
-	coverURL, err := utils.UploadCoverImage(req.Cover, req.Category)
-	if err != nil {
-		response.Fail(c, http.StatusInternalServerError, nil, "上传封面失败"+err.Error())
-		return
+	if req.Cover != nil {
+		coverURL, err = utils.UploadCoverImage(req.Cover, req.Category)
+		if err != nil {
+			response.Fail(c, http.StatusInternalServerError, nil, err.Error())
+			return
+		}
 	}
 
 	// 4.保存文档信息到数据库（使用事务）
 	// 查询分类是否存在
 	categories, err := dao.GetCategoryByName(req.Category)
 	if err != nil {
-		response.Fail(c, http.StatusInternalServerError, nil, "数据库错误"+err.Error())
+		response.Fail(c, http.StatusInternalServerError, nil, "数据库错误")
+		return
 	}
 	if len(categories) == 0 {
 		response.Fail(c, http.StatusNotFound, nil, "分类不存在")
+		return
 	}
 	category := categories[0]
 	// 查询上传者是否存在
@@ -58,16 +63,20 @@ func UploadFile(c *gin.Context) {
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			response.Fail(c, http.StatusNotFound, nil, "上传用户不存在")
+			return
 		}
-		response.Fail(c, http.StatusInternalServerError, nil, "数据库错误"+err.Error())
+		response.Fail(c, http.StatusInternalServerError, nil, "数据库错误")
+		return
 	}
 	// 查询课程是否存在
 	course, err := dao.GetCourseByID(req.CourseID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			response.Fail(c, http.StatusNotFound, nil, "课程不存在")
+			return
 		}
-		response.Fail(c, http.StatusInternalServerError, nil, "数据库错误"+err.Error())
+		response.Fail(c, http.StatusInternalServerError, nil, "数据库错误")
+		return
 	}
 	document := models.Document{
 		Type:        req.Type,
@@ -84,7 +93,7 @@ func UploadFile(c *gin.Context) {
 	if req.ISBN != nil {
 		document.BookISBN = *req.ISBN
 	}
-	if coverURL != "" {
+	if req.Cover != nil {
 		document.Cover = coverURL
 	}
 
@@ -102,10 +111,17 @@ func UploadFile(c *gin.Context) {
 		document.CreateYear = *req.CreateYear
 	}
 	if req.UploadTime != nil {
-		document.CreatedAt, err = time.Parse("2006-01-02 15:04:05", *req.UploadTime)
+		parsedTime, err := time.Parse("2006-01-02 15:04:05", *req.UploadTime)
 		if err != nil {
 			response.Fail(c, http.StatusBadRequest, nil, "时间格式错误")
+			return
 		}
+		// 验证时间是否在合理范围内（例如，不能是未来时间）
+		if parsedTime.After(time.Now()) {
+			response.Fail(c, http.StatusBadRequest, nil, "时间不能是未来时间")
+			return
+		}
+		document.CreatedAt = parsedTime
 	}
 	// 事务
 	err = db.Transaction(func(tx *gorm.DB) error {
@@ -118,7 +134,7 @@ func UploadFile(c *gin.Context) {
 	})
 	// 检查事务执行结果
 	if err != nil {
-		response.Fail(c, http.StatusInternalServerError, nil, err.Error())
+		response.Fail(c, http.StatusInternalServerError, nil, "文档保存失败")
 		return
 	}
 

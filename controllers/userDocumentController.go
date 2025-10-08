@@ -17,35 +17,40 @@ func WithdrawUpload(c *gin.Context) {
 	var request dto.WithdrawUploadDTO
 	if err := c.ShouldBindQuery(&request); err != nil {
 		response.Fail(c, http.StatusBadRequest, nil, "参数解析失败")
+		return
 	}
 
+	// 查找对应文档
 	document, err := dao.GetDocumentByID(request.DocumentID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			response.Fail(c, http.StatusNotFound, nil, "文档不存在")
+			return
 		} else {
 			response.Fail(c, http.StatusInternalServerError, nil, "数据库错误")
+			return
 		}
 	}
 	if document.Status != constant.DocumentStatusAudit {
-		response.Fail(c, http.StatusBadRequest, nil, "文档已审核，不允许撤回")
+		response.Fail(c, http.StatusBadRequest, nil, "文档不在审核中，不允许撤回")
+		return
 	}
+	// 查找对应分类
 	category, err := dao.GetCategoryByID(document.CategoryID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			response.Fail(c, http.StatusNotFound, nil, "分类不存在")
+			return
 		} else {
 			response.Fail(c, http.StatusInternalServerError, nil, "数据库错误")
+			return
 		}
 	}
 	document.Status = constant.DocumentStatusWithdraw
 
 	if err := dao.UpdateDocument(document); err != nil {
 		response.Fail(c, http.StatusInternalServerError, nil, "文档更新失败")
-	}
-
-	if err != nil {
-		response.Fail(c, http.StatusInternalServerError, nil, err.Error())
+		return
 	}
 
 	responseData := gin.H{

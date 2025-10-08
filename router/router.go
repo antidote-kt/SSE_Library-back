@@ -2,12 +2,13 @@ package router
 
 import (
 	"github.com/antidote-kt/SSE_Library-back/controllers"
+	"github.com/antidote-kt/SSE_Library-back/middlewares"
 	"github.com/gin-gonic/gin"
 )
 
 func SetupRouter() *gin.Engine {
 	router := gin.Default()
-
+	router.Use(middlewares.CORSMiddleware())
 	api := router.Group("/api")
 	userApi := api.Group("/users")
 	adminApi := api.Group("/admin")

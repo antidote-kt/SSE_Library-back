@@ -72,6 +72,9 @@ func GetFileURL(filename string) string {
 
 // 上传主文件
 func UploadMainFile(file *multipart.FileHeader, category string) (string, error) {
+	if file == nil || file.Size == 0 {
+		return "", nil
+	}
 	fileReader, err := file.Open()
 	if err != nil {
 		return "", fmt.Errorf("打开文件失败")
@@ -91,7 +94,7 @@ func UploadMainFile(file *multipart.FileHeader, category string) (string, error)
 
 // 上传封面图片
 func UploadCoverImage(cover *multipart.FileHeader, category string) (string, error) {
-	if cover == nil {
+	if cover == nil || cover.Size == 0 {
 		return "", nil // 没有封面图片，返回空字符串
 	}
 
