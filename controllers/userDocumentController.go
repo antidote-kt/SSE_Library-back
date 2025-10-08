@@ -38,18 +38,6 @@ func WithdrawUpload(c *gin.Context) {
 			response.Fail(c, http.StatusInternalServerError, nil, "数据库错误")
 		}
 	}
-	//if document.URL != "" {
-	//	err := utils.DeleteFile(document.URL)
-	//	if err != nil {
-	//		response.Fail(c, http.StatusInternalServerError, nil, "删除文档失败")
-	//	}
-	//}
-	//if document.Cover != "" {
-	//	err := utils.DeleteFile(document.Cover)
-	//	if err != nil {
-	//		response.Fail(c, http.StatusInternalServerError, nil, "删除封面失败")
-	//	}
-	//}
 	document.Status = constant.DocumentStatusWithdraw
 
 	if err := dao.UpdateDocument(document); err != nil {

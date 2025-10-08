@@ -26,7 +26,7 @@ func UploadFile(c *gin.Context) {
 	var req dto.UploadDTO
 	// 1. 绑定并验证请求参数
 	if err := bindAndValidateRequest(c, &req); err != nil {
-		return
+		response.Fail(c, http.StatusBadRequest, nil, err.Error())
 	}
 
 	// 2. 上传主文件
@@ -162,13 +162,11 @@ func validateFileSize(size int64) bool {
 // 绑定并验证请求参数
 func bindAndValidateRequest(c *gin.Context, req *dto.UploadDTO) error {
 	if err := c.ShouldBind(req); err != nil {
-		response.Fail(c, http.StatusBadRequest, nil, "参数绑定失败: "+err.Error())
-		return err
+		return fmt.Errorf("参数绑定失败:" + err.Error())
 	}
 
 	if !validateFileSize(req.File.Size) {
-		response.Fail(c, http.StatusBadRequest, nil, "文件大小超出限制或文件为空")
-		return fmt.Errorf("文件大小超出限制或文件为空")
+		return fmt.Errorf("文件大小不能超过%vMB", maxFileSize/1024/1024)
 	}
 
 	return nil

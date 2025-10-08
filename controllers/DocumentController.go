@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/antidote-kt/SSE_Library-back/config"
+	"github.com/antidote-kt/SSE_Library-back/constant"
 	"github.com/antidote-kt/SSE_Library-back/dao"
 	"github.com/antidote-kt/SSE_Library-back/dto"
 	"github.com/antidote-kt/SSE_Library-back/models"
@@ -91,6 +92,7 @@ func ModifyDocument(c *gin.Context) {
 			response.Fail(c, http.StatusInternalServerError, nil, "旧文件删除失败")
 		}
 		document.URL, err = utils.UploadMainFile(request.File, category.Name)
+		document.Status = constant.DocumentStatusAudit
 	}
 
 	err = db.Transaction(func(tx *gorm.DB) error {
