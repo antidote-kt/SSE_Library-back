@@ -65,6 +65,13 @@ func UpdateDocumentWithTx(tx *gorm.DB, document models.Document) error {
 	}
 	return tx.Save(&document).Error
 }
+func UpdateDocument(document models.Document) error {
+	db := config.GetDB()
+	if document.ID == 0 {
+		return errors.New("文档ID不能为空")
+	}
+	return db.Save(&document).Error
+}
 
 func DeleteDocumentWithTx(tx *gorm.DB, document models.Document) error {
 	if document.ID == 0 {

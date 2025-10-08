@@ -63,7 +63,7 @@ CREATE TABLE documents (
    cover VARCHAR(500) COMMENT '封面图片路径，存储封面图片的URL或文件路径',
    introduction TEXT COMMENT '文档简介，描述文档内容和特点',
    create_year VARCHAR(10) COMMENT '出版年份，仅书籍类型需要',
-   status varchar(20) DEFAULT 'audit' COMMENT '文档状态：open-公开可见，audit-待审核，deleted-已删除',
+   status varchar(20) DEFAULT 'audit' COMMENT '文档状态：open-公开可见，close-关闭, audit-待审核，withdraw-已撤回',
    read_counts INT DEFAULT 0 COMMENT '浏览次数统计',
    collections INT DEFAULT 0 COMMENT '收藏次数统计',
    url VARCHAR(500) NOT NULL COMMENT '下载/预览链接',

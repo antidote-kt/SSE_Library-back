@@ -4,7 +4,6 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/antidote-kt/SSE_Library-back/config"
 	"github.com/antidote-kt/SSE_Library-back/constant"
 	"github.com/antidote-kt/SSE_Library-back/dao"
 	"github.com/antidote-kt/SSE_Library-back/dto"
@@ -15,7 +14,6 @@ import (
 )
 
 func WithdrawUpload(c *gin.Context) {
-	db := config.GetDB()
 	var request dto.WithdrawUploadDTO
 	if err := c.ShouldBindQuery(&request); err != nil {
 		response.Fail(c, http.StatusBadRequest, nil, "参数解析失败")
@@ -40,25 +38,24 @@ func WithdrawUpload(c *gin.Context) {
 			response.Fail(c, http.StatusInternalServerError, nil, "数据库错误")
 		}
 	}
-	if document.URL != "" {
-		err := utils.DeleteFile(document.URL)
-		if err != nil {
-			response.Fail(c, http.StatusInternalServerError, nil, "删除文档失败")
-		}
+	//if document.URL != "" {
+	//	err := utils.DeleteFile(document.URL)
+	//	if err != nil {
+	//		response.Fail(c, http.StatusInternalServerError, nil, "删除文档失败")
+	//	}
+	//}
+	//if document.Cover != "" {
+	//	err := utils.DeleteFile(document.Cover)
+	//	if err != nil {
+	//		response.Fail(c, http.StatusInternalServerError, nil, "删除封面失败")
+	//	}
+	//}
+	document.Status = constant.DocumentStatusWithdraw
+
+	if err := dao.UpdateDocument(document); err != nil {
+		response.Fail(c, http.StatusInternalServerError, nil, "文档更新失败")
 	}
-	if document.Cover != "" {
-		err := utils.DeleteFile(document.Cover)
-		if err != nil {
-			response.Fail(c, http.StatusInternalServerError, nil, "删除封面失败")
-		}
-	}
-	err = db.Transaction(func(tx *gorm.DB) error {
-		err := dao.DeleteDocumentWithTx(tx, document)
-		if err != nil {
-			return err
-		}
-		return nil
-	})
+
 	if err != nil {
 		response.Fail(c, http.StatusInternalServerError, nil, err.Error())
 	}

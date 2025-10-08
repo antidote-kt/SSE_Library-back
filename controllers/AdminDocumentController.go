@@ -16,9 +16,6 @@ import (
 	"gorm.io/gorm"
 )
 
-type AdminModifyDocumentStatusRequest struct {
-}
-
 func AdminModifyDocument(c *gin.Context) {
 	var request dto.AdminModifyDocumentDTO
 	var category models.Category
@@ -152,5 +149,24 @@ func AdminModifyDocument(c *gin.Context) {
 }
 
 func AdminModifyDocumentStatus(c *gin.Context) {
-
+	var request dto.AdminModifyDocumentStatusRequest
+	if err := c.ShouldBindQuery(&request); err != nil {
+		response.Fail(c, http.StatusBadRequest, gin.H{}, "参数错误")
+		return
+	}
+	document, err := dao.GetDocumentByID(request.DocumentID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			response.Fail(c, http.StatusNotFound, nil, "文档不存在")
+		}
+		response.Fail(c, http.StatusInternalServerError, nil, "数据库错误")
+	}
+	document.Type = request.Type
+	document.Status = request.NewStatus
+	if request.Name != nil {
+		document.Name = *request.Name
+	}
+	if err := dao.UpdateDocument(document); err != nil {
+		response.Fail(c, http.StatusInternalServerError, nil, "文档更新失败")
+	}
 }

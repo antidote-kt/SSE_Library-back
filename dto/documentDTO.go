@@ -61,3 +61,9 @@ type AdminModifyDocumentDTO struct {
 	Type       *string  `form:"type,omitempty"`
 	UploadTime *string  `form:"uploadTime,omitempty"`
 }
+type AdminModifyDocumentStatusRequest struct {
+	DocumentID uint64  `json:"document_id"`
+	Name       *string `json:"Name,omitempty"`
+	NewStatus  string  `json:"newStatus"`
+	Type       string  `json:"type"`
+}
