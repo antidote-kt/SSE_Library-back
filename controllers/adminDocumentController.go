@@ -18,8 +18,10 @@ import (
 )
 
 func AdminModifyDocument(c *gin.Context) {
-	var request dto.AdminModifyDocumentDTO
+	var request dto.ModifyDocumentDTO
 	var category models.Category
+	//记录旧状态
+	var oldType string
 	db := config.GetDB()
 	if err := c.ShouldBind(&request); err != nil {
 		response.Fail(c, http.StatusBadRequest, nil, "参数错误")
@@ -36,25 +38,14 @@ func AdminModifyDocument(c *gin.Context) {
 		response.Fail(c, http.StatusInternalServerError, nil, "数据库查询失败")
 		return
 	}
+	oldType = document.Type
 
 	// 更新文档字段（如果提供了相应字段）
 	if request.Author != nil {
 		document.Author = *request.Author
 	}
-	if request.Category != nil {
-		categories, err := dao.GetCategoryByName(*request.Category)
-		if err != nil {
-			response.Fail(c, http.StatusInternalServerError, nil, "数据库错误")
-			return
-		}
-		if len(categories) == 0 {
-			response.Fail(c, http.StatusNotFound, nil, "分类不存在")
-			return
-		}
-		document.CategoryID = categories[0].ID
-		category = categories[0]
-	} else {
-		category, err = dao.GetCategoryByID(document.CategoryID)
+	if request.CategoryID != nil {
+		category, err = dao.GetCategoryByID(*request.CategoryID)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				response.Fail(c, http.StatusNotFound, nil, "分类不存在")
@@ -63,8 +54,8 @@ func AdminModifyDocument(c *gin.Context) {
 			response.Fail(c, http.StatusInternalServerError, nil, "数据库错误")
 			return
 		}
+		document.CategoryID = category.ID
 	}
-
 	if request.CreateYear != nil {
 		document.CreateYear = *request.CreateYear
 	}
@@ -80,9 +71,6 @@ func AdminModifyDocument(c *gin.Context) {
 	if request.Introduction != nil {
 		document.Introduction = *request.Introduction
 	}
-	if request.CourseID != nil {
-		document.CourseID = *request.CourseID
-	}
 	if request.UploadTime != nil {
 		parsedTime, err := time.Parse("2006-01-02 15:04:05", *request.UploadTime)
 		if err != nil {
@@ -92,28 +80,38 @@ func AdminModifyDocument(c *gin.Context) {
 		document.CreatedAt = parsedTime
 	}
 	if request.Cover != nil {
+		// 先删除旧封面，如果document.cover为空串则不做任何操作
 		err := utils.DeleteFile(document.Cover)
 		if err != nil {
 			response.Fail(c, http.StatusInternalServerError, nil, "旧封面删除失败")
 			return
 		}
+		//上传新封面
 		document.Cover, err = utils.UploadCoverImage(request.Cover, category.Name)
 		if err != nil {
 			response.Fail(c, http.StatusInternalServerError, nil, "封面上传失败")
 			return
 		}
 	}
-	if request.File != nil {
-		err := utils.DeleteFile(document.URL)
-		if err != nil {
-			response.Fail(c, http.StatusInternalServerError, nil, "旧文件删除失败")
-			return
+	if request.File != nil || request.VideoURL != nil {
+		// 只有原来的类型不是video才删除，如果原来是video，cos没有相应的资源
+		if oldType != constant.VideoType {
+			err := utils.DeleteFile(document.URL)
+			if err != nil {
+				response.Fail(c, http.StatusInternalServerError, nil, "旧文件删除失败")
+				return
+			}
 		}
-		document.URL, err = utils.UploadMainFile(request.File, category.Name)
-		if err != nil {
-			response.Fail(c, http.StatusInternalServerError, nil, "文件上传失败")
-			return
+		if request.VideoURL != nil {
+			document.URL = *request.VideoURL
+		} else if request.File != nil {
+			document.URL, err = utils.UploadMainFile(request.File, category.Name)
+			if err != nil {
+				response.Fail(c, http.StatusInternalServerError, nil, "文件上传失败")
+				return
+			}
 		}
+		// 重新上传文件需要重新审核
 		document.Status = constant.DocumentStatusAudit
 	}
 
@@ -148,7 +146,13 @@ func AdminModifyDocument(c *gin.Context) {
 		response.Fail(c, http.StatusInternalServerError, nil, "数据库错误")
 		return
 	}
-
+	// 优先判断是否是上传文件，再判断是否是视频URL
+	var fileURL string
+	if request.File != nil {
+		fileURL = utils.GetFileURL(document.URL)
+	} else if request.VideoURL != nil {
+		fileURL = document.URL
+	}
 	// 构造返回数据
 	responseData := gin.H{
 		"infoBrief": gin.H{
@@ -160,7 +164,7 @@ func AdminModifyDocument(c *gin.Context) {
 			"category":    category.Name,
 			"collections": document.Collections,
 			"readCounts":  document.ReadCounts,
-			"URL":         utils.GetFileURL(document.URL),
+			"URL":         fileURL,
 		},
 		"uploader": gin.H{
 			"userId":     uploader.ID,
@@ -199,6 +203,7 @@ func AdminModifyDocumentStatus(c *gin.Context) {
 		response.Fail(c, http.StatusBadRequest, nil, "参数错误")
 		return
 	}
+	//查询对应document
 	document, err := dao.GetDocumentByID(request.DocumentID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {

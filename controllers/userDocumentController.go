@@ -31,10 +31,16 @@ func WithdrawUpload(c *gin.Context) {
 			return
 		}
 	}
+	// 判断请求的用户是否是文档的拥有者
+	if request.UserID != document.UploaderID {
+		response.Fail(c, http.StatusForbidden, nil, "不允许撤回其他人的文档")
+		return
+	}
 	if document.Status != constant.DocumentStatusAudit {
 		response.Fail(c, http.StatusBadRequest, nil, "文档不在审核中，不允许撤回")
 		return
 	}
+	document.Status = constant.DocumentStatusWithdraw
 	// 查找对应分类
 	category, err := dao.GetCategoryByID(document.CategoryID)
 	if err != nil {
@@ -46,7 +52,6 @@ func WithdrawUpload(c *gin.Context) {
 			return
 		}
 	}
-	document.Status = constant.DocumentStatusWithdraw
 
 	if err := dao.UpdateDocument(document); err != nil {
 		response.Fail(c, http.StatusInternalServerError, nil, "文档更新失败")

@@ -9,6 +9,7 @@ import (
 type Category struct {
 	ID          uint64         `gorm:"primaryKey;autoIncrement" json:"id"`
 	Name        string         `gorm:"type:varchar(50);not null" json:"name"`
+	IsCourse    bool           `gorm:"type:boolean;not null" json:"is_course"`
 	Description string         `gorm:"type:text" json:"description"`
 	ParentID    *uint64        `gorm:"index:idx_parent_id" json:"parent_id"`
 	Documents   []Document     `gorm:"foreignKey:CategoryID"`

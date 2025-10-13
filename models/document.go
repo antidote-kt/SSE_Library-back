@@ -13,7 +13,6 @@ type Document struct {
 	BookISBN     string         `gorm:"type:varchar(20)" json:"book_isbn"`
 	Author       string         `gorm:"type:varchar(100);not null" json:"author"`
 	UploaderID   uint64         `gorm:"not null;index:idx_uploader_id" json:"uploader_id"`
-	CourseID     uint64         `gorm:"not null;index:idx_course_id" json:"course_id"`
 	CategoryID   uint64         `gorm:"not null;index:idx_category_id" json:"category_id"`
 	Cover        string         `gorm:"type:varchar(500)" json:"cover"`
 	Introduction string         `gorm:"type:text" json:"introduction"`
@@ -22,7 +21,6 @@ type Document struct {
 	ReadCounts   int            `gorm:"default:0" json:"read_counts"`
 	Collections  int            `gorm:"default:0" json:"collections"`
 	URL          string         `gorm:"type:varchar(500);not null" json:"url"`
-	Tags         []Tag          `gorm:"many2many:document_tag"`
 	CreatedAt    time.Time      `gorm:"autoCreateTime" json:"created_at"`
 	UpdatedAt    time.Time      `gorm:"autoUpdateTime" json:"updated_at"`
 	DeletedAt    gorm.DeletedAt `gorm:"index" json:"-"`
