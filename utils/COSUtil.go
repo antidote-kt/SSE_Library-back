@@ -55,6 +55,9 @@ func UploadFile(key string, file io.Reader) error {
 }
 
 func DeleteFile(filename string) error {
+	if filename == "" {
+		return nil
+	}
 	client, _ := getCOSClient()
 	_, err := client.Object.Delete(context.Background(), filename)
 	return err

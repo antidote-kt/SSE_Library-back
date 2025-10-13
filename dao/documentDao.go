@@ -19,7 +19,7 @@ func GetDocumentByID(id uint64) (models.Document, error) {
 	return document, nil
 }
 
-func CreateDocumentWithTx(tx *gorm.DB, document models.Document, tagNames []string) error {
+func CreateDocumentWithTx(tx *gorm.DB, document models.Document, tagNames []string) (models.Document, error) {
 	var tags []models.Tag
 	for _, tagName := range tagNames {
 		var tag models.Tag
@@ -30,18 +30,18 @@ func CreateDocumentWithTx(tx *gorm.DB, document models.Document, tagNames []stri
 					TagName: tagName,
 				}
 				if err := tx.Create(&tag).Error; err != nil {
-					return fmt.Errorf("创建标签失败: %s, 错误: %v", tagName, err)
+					return models.Document{}, fmt.Errorf("创建标签失败: %s, 错误: %v", tagName, err)
 				}
 			} else {
 				// 其他数据库错误
-				return fmt.Errorf("查询标签失败: %s, 错误: %v", tagName, err)
+				return models.Document{}, fmt.Errorf("查询标签失败: %s, 错误: %v", tagName, err)
 			}
 		}
 		tags = append(tags, tag)
 	}
 	// 创建文档
 	if err := tx.Create(&document).Error; err != nil {
-		return fmt.Errorf("创建文档失败: %v", err)
+		return models.Document{}, fmt.Errorf("创建文档失败: %v", err)
 	}
 
 	// 创建文档与标签的关联
@@ -52,10 +52,10 @@ func CreateDocumentWithTx(tx *gorm.DB, document models.Document, tagNames []stri
 			TagID:      tag.ID,
 		}
 		if err := tx.Create(&docTag).Error; err != nil {
-			return fmt.Errorf("创建文档标签关联失败: %v", err)
+			return models.Document{}, fmt.Errorf("创建文档标签关联失败: %v", err)
 		}
 	}
-	return nil
+	return document, nil
 
 }
 

@@ -13,12 +13,12 @@ func SetupRouter() *gin.Engine {
 	userApi := api.Group("/users")
 	adminApi := api.Group("/admin")
 
-	api.POST("/upload", controllers.UploadFile)
-	api.PUT("/modify", controllers.ModifyDocument)
+	api.POST("/document", controllers.UploadFile)
+	api.PUT("/document", controllers.ModifyDocument)
 
 	userApi.DELETE("/withdrawUpload", controllers.WithdrawUpload)
 
-	adminApi.PUT("/file", controllers.AdminModifyDocument)
-	adminApi.POST("/fileStatus", controllers.AdminModifyDocumentStatus)
+	adminApi.PUT("/document", controllers.AdminModifyDocument)
+	adminApi.PUT("/document/status", controllers.AdminModifyDocumentStatus)
 	return router
 }
