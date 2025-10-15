@@ -27,7 +27,7 @@ func buildCommentResponse(commentData dao.CommentWithDetails) dto.CommentRespons
 			Email:      commentData.Email,
 			Role:       commentData.Role,
 		},
-		Book: dto.DocumentBriefDTO{
+		Document: dto.DocumentBriefDTO{
 			Name:        commentData.DocumentName,
 			DocumentID:  uint64(commentData.DocumentID),
 			Type:        commentData.Type,
