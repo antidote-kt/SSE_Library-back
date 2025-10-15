@@ -358,10 +358,17 @@ func DeleteUserComment(c *gin.Context) {
 		return
 	}
 
+	// 获取删除后用户在该文档下的所有剩余评论
+	remainingComments, err := dao.GetUserCommentsWithUserAndDocument(userID)
+	if err != nil {
+		response.Fail(c, constant.StatusInternalServerError, nil, constant.MsgGetCommentListFailed)
+		return
+	}
+
 	responseData := gin.H{
 		"code":    constant.CodeSuccess,
 		"message": constant.MsgCommentDeleteSuccess,
-		"data":    []dto.CommentResponseDTO{buildCommentResponse(*deletedCommentInfo)},
+		"data":    buildCommentResponseList(remainingComments),
 	}
 
 	c.JSON(constant.StatusOK, responseData)
