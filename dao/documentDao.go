@@ -19,6 +19,17 @@ func GetDocumentByID(id uint64) (models.Document, error) {
 	return document, nil
 }
 
+// GetDocumentsByUploaderID 获取指定用户上传的文档列表
+func GetDocumentsByUploaderID(userID uint64) ([]models.Document, error) {
+	db := config.GetDB()
+	var documents []models.Document
+	err := db.Where("uploader_id = ?", userID).Find(&documents).Error
+	if err != nil {
+		return nil, err
+	}
+	return documents, nil
+}
+
 func CreateDocumentWithTx(tx *gorm.DB, document models.Document, tagNames []string) (models.Document, error) {
 	var tags []models.Tag
 	for _, tagName := range tagNames {
@@ -65,6 +76,7 @@ func UpdateDocumentWithTx(tx *gorm.DB, document models.Document) error {
 	}
 	return tx.Save(&document).Error
 }
+
 func UpdateDocument(document models.Document) error {
 	db := config.GetDB()
 	if document.ID == 0 {

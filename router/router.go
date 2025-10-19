@@ -10,7 +10,7 @@ func SetupRouter() *gin.Engine {
 	router := gin.Default()
 	router.Use(middlewares.CORSMiddleware())
 	api := router.Group("/api")
-	userApi := api.Group("/users")
+	userApi := api.Group("/user")
 	adminApi := api.Group("/admin")
 	booksApi := api.Group("/books")
 	userDeleteApi := router.Group("/user")
@@ -20,8 +20,10 @@ func SetupRouter() *gin.Engine {
 	api.PUT("/document", controllers.ModifyDocument)
 
 	userApi.DELETE("/withdrawUpload", controllers.WithdrawUpload)
+	userApi.POST("/collect", controllers.CollectDocument)       // 收藏资料
+	userApi.DELETE("/collect", controllers.WithdrawCollection)  // 取消收藏
+	userApi.GET("/document", controllers.GetUserUploadDocument) //用户查看上传文件列表
 
-	adminApi.PUT("/document", controllers.AdminModifyDocument)
 	adminApi.PUT("/document/status", controllers.AdminModifyDocumentStatus)
 	adminApi.GET("/comments", middlewares.AuthMiddleware(), controllers.GetAllComments)  // 管理员获取所有评论（需要认证）
 	adminApi.DELETE("/comment", middlewares.AuthMiddleware(), controllers.DeleteComment) // 管理员删除评论（需要认证）

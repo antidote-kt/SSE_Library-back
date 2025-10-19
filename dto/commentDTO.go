@@ -21,28 +21,3 @@ type CommentResponseDTO struct {
 	CreatedAt string           `json:"created_at"`
 	Content   string           `json:"content"`
 }
-
-type UserBriefDTO struct {
-	UserID     uint64 `json:"userId"`
-	Username   string `json:"username"`
-	UserAvatar string `json:"userAvatar"`
-	Status     string `json:"status"`
-	CreateTime string `json:"createTime"`
-	Email      string `json:"email"`
-	Role       string `json:"role"`
-}
-
-type DocumentBriefDTO struct {
-	Name        string `json:"name"`
-	DocumentID  uint64 `json:"document_id"`
-	Type        string `json:"type"`
-	UploadTime  string `json:"uploadTime"`
-	Status      string `json:"status"`
-	Category    string `json:"category"`
-	Course      string `json:"course"`
-	Collections int    `json:"collections"`
-	ReadCounts  int    `json:"readCounts"`
-	URL         string `json:"URL"`
-	Content     string `json:"content"`
-	CreateTime  string `json:"createTime"`
-}

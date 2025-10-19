@@ -45,27 +45,23 @@ type ModifyDocumentDTO struct {
 	Tags         []string `form:"tags,omitempty"`
 	Type         *string  `form:"type,omitempty"`
 	Introduction *string  `form:"introduction,omitempty"`
-	UploadTime   *string  `form:"uploadTime,omitempty"`
-}
-type AdminModifyDocumentDTO struct {
-	Author     *string               `form:"author,omitempty"`
-	CategoryID *uint64               `form:"categoryId,omitempty"`
-	File       *multipart.FileHeader `form:"file,omitempty"`
-	Cover      *multipart.FileHeader `form:"cover,omitempty"`
-	VideoURL   *string               `form:"videoURL,omitempty"`
-	CreateYear *string               `form:"createYear,omitempty"`
-	// 资料id
-	DocumentID   uint64   `form:"document_id" binding:"required"`
-	ISBN         *string  `form:"ISBN"`
-	Name         *string  `form:"name,omitempty"`
-	Tags         []string `form:"tags,omitempty"`
-	Type         *string  `form:"type,omitempty"`
-	Introduction *string  `form:"introduction,omitempty"`
-	UploadTime   *string  `form:"uploadTime,omitempty"`
 }
 type AdminModifyDocumentStatusRequest struct {
 	DocumentID uint64  `form:"document_id"`
 	Name       *string `form:"name,omitempty"`
 	Status     *string `form:"status"`
-	Type       *string `form:"type"`
+}
+type DocumentBriefDTO struct {
+	Name        string `json:"name"`
+	DocumentID  uint64 `json:"document_id"`
+	Type        string `json:"type"`
+	UploadTime  string `json:"uploadTime"`
+	Status      string `json:"status"`
+	Category    string `json:"category"`
+	Course      string `json:"course"`
+	Collections int    `json:"collections"`
+	ReadCounts  int    `json:"readCounts"`
+	URL         string `json:"URL"`
+	Content     string `json:"content"`
+	CreateTime  string `json:"createTime"`
 }

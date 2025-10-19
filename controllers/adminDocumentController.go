@@ -2,219 +2,31 @@ package controllers
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
-	"time"
 
-	"github.com/antidote-kt/SSE_Library-back/config"
 	"github.com/antidote-kt/SSE_Library-back/constant"
 	"github.com/antidote-kt/SSE_Library-back/dao"
 	"github.com/antidote-kt/SSE_Library-back/dto"
-	"github.com/antidote-kt/SSE_Library-back/models"
 	"github.com/antidote-kt/SSE_Library-back/response"
-	"github.com/antidote-kt/SSE_Library-back/utils"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
-func AdminModifyDocument(c *gin.Context) {
-	var request dto.ModifyDocumentDTO
-	var category models.Category
-	//记录旧状态
-	var oldType string
-	db := config.GetDB()
-	if err := c.ShouldBind(&request); err != nil {
-		response.Fail(c, http.StatusBadRequest, nil, "参数错误")
-		return
-	}
-
-	// 查找要修改的文档
-	document, err := dao.GetDocumentByID(request.DocumentID)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			response.Fail(c, http.StatusNotFound, nil, "文档不存在")
-			return
-		}
-		response.Fail(c, http.StatusInternalServerError, nil, "数据库查询失败")
-		return
-	}
-	oldType = document.Type
-
-	// 更新文档字段（如果提供了相应字段）
-	if request.Author != nil {
-		document.Author = *request.Author
-	}
-	if request.CategoryID != nil {
-		category, err = dao.GetCategoryByID(*request.CategoryID)
-		if err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				response.Fail(c, http.StatusNotFound, nil, "分类不存在")
-				return
-			}
-			response.Fail(c, http.StatusInternalServerError, nil, "数据库错误")
-			return
-		}
-		document.CategoryID = category.ID
-	}
-	if request.CreateYear != nil {
-		document.CreateYear = *request.CreateYear
-	}
-	if request.ISBN != nil {
-		document.BookISBN = *request.ISBN
-	}
-	if request.Name != nil {
-		document.Name = *request.Name
-	}
-	if request.Type != nil {
-		document.Type = *request.Type
-	}
-	if request.Introduction != nil {
-		document.Introduction = *request.Introduction
-	}
-	if request.UploadTime != nil {
-		parsedTime, err := time.Parse("2006-01-02 15:04:05", *request.UploadTime)
-		if err != nil {
-			response.Fail(c, http.StatusBadRequest, nil, "时间格式错误")
-			return
-		}
-		document.CreatedAt = parsedTime
-	}
-	if request.Cover != nil {
-		// 先删除旧封面，如果document.cover为空串则不做任何操作
-		err := utils.DeleteFile(document.Cover)
-		if err != nil {
-			response.Fail(c, http.StatusInternalServerError, nil, "旧封面删除失败")
-			return
-		}
-		//上传新封面
-		document.Cover, err = utils.UploadCoverImage(request.Cover, category.Name)
-		if err != nil {
-			response.Fail(c, http.StatusInternalServerError, nil, "封面上传失败")
-			return
-		}
-	}
-	if request.File != nil || request.VideoURL != nil {
-		// 只有原来的类型不是video才删除，如果原来是video，cos没有相应的资源
-		if oldType != constant.VideoType {
-			err := utils.DeleteFile(document.URL)
-			if err != nil {
-				response.Fail(c, http.StatusInternalServerError, nil, "旧文件删除失败")
-				return
-			}
-		}
-		if request.VideoURL != nil {
-			document.URL = *request.VideoURL
-		} else if request.File != nil {
-			document.URL, err = utils.UploadMainFile(request.File, category.Name)
-			if err != nil {
-				response.Fail(c, http.StatusInternalServerError, nil, "文件上传失败")
-				return
-			}
-		}
-		// 重新上传文件需要重新审核
-		document.Status = constant.DocumentStatusAudit
-	}
-
-	err = db.Transaction(func(tx *gorm.DB) error {
-		if err := dao.UpdateDocumentWithTx(tx, document); err != nil {
-			return err
-		}
-		if len(request.Tags) > 0 {
-			// 删除原有的标签映射
-			if err := dao.DeleteDocumentTagByDocumentIDWithTx(tx, document.ID); err != nil {
-				return fmt.Errorf("标签更新失败")
-			}
-			// 创建新标签映射
-			if err := dao.CreateDocumentTagWithTx(tx, document.ID, request.Tags); err != nil {
-				return err
-			}
-
-		}
-		return nil
-	})
-	// 检查事务执行结果
-	if err != nil {
-		response.Fail(c, http.StatusInternalServerError, nil, err.Error())
-		return
-	}
-	uploader, err := dao.GetUserByID(document.UploaderID)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			response.Fail(c, http.StatusNotFound, nil, "上传者不存在")
-			return
-		}
-		response.Fail(c, http.StatusInternalServerError, nil, "数据库错误")
-		return
-	}
-	// 优先判断是否是上传文件，再判断是否是视频URL
-	var fileURL string
-	if request.File != nil {
-		fileURL = utils.GetFileURL(document.URL)
-	} else if request.VideoURL != nil {
-		fileURL = document.URL
-	}
-	// 构造返回数据
-	responseData := gin.H{
-		"infoBrief": gin.H{
-			"name":        document.Name,
-			"document_id": document.ID,
-			"type":        document.Type,
-			"uploadTime":  document.CreatedAt.Format("2006-01-02 15:04:05"),
-			"status":      document.Status,
-			"category":    category.Name,
-			"collections": document.Collections,
-			"readCounts":  document.ReadCounts,
-			"URL":         fileURL,
-		},
-		"uploader": gin.H{
-			"userId":     uploader.ID,
-			"username":   uploader.Username,
-			"userAvatar": uploader.Avatar,
-			"status":     uploader.Status,
-			"createTime": uploader.CreatedAt.Format("2006-01-02 15:04:05"),
-			"email":      uploader.Email,
-			"role":       uploader.Role,
-		},
-		"bookISBN":     document.BookISBN,
-		"author":       document.Author,
-		"Cover":        utils.GetFileURL(document.Cover),
-		"introduction": document.Introduction,
-		"createYear":   document.CreateYear,
-	}
-
-	// 获取文档标签列表
-	tags, err := dao.GetDocumentTagByDocumentID(document.ID)
-	if err != nil {
-		response.Fail(c, http.StatusInternalServerError, nil, err.Error())
-		return
-	}
-	var tagNames []string
-	for _, tag := range tags {
-		tagNames = append(tagNames, tag.TagName)
-	}
-	responseData["tags"] = tagNames
-
-	response.Success(c, responseData, "文档修改成功")
-}
-
 func AdminModifyDocumentStatus(c *gin.Context) {
 	var request dto.AdminModifyDocumentStatusRequest
 	if err := c.ShouldBind(&request); err != nil {
-		response.Fail(c, http.StatusBadRequest, nil, "参数错误")
+		response.Fail(c, http.StatusBadRequest, nil, constant.ParamParseError)
 		return
 	}
 	//查询对应document
 	document, err := dao.GetDocumentByID(request.DocumentID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			response.Fail(c, http.StatusNotFound, nil, "文档不存在")
+			response.Fail(c, http.StatusNotFound, nil, constant.DocumentNotExist)
 			return
 		}
-		response.Fail(c, http.StatusInternalServerError, nil, "数据库错误")
+		response.Fail(c, http.StatusInternalServerError, nil, constant.DatabaseError)
 		return
-	}
-	if request.Type != nil {
-		document.Type = *request.Type
 	}
 	if request.Status != nil {
 		document.Status = *request.Status
@@ -223,66 +35,9 @@ func AdminModifyDocumentStatus(c *gin.Context) {
 		document.Name = *request.Name
 	}
 	if err := dao.UpdateDocument(document); err != nil {
-		response.Fail(c, http.StatusInternalServerError, nil, "文档更新失败")
-		return
-	}
-	uploader, err := dao.GetUserByID(document.UploaderID)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			response.Fail(c, http.StatusNotFound, nil, "上传者不存在")
-			return
-		}
-		response.Fail(c, http.StatusInternalServerError, nil, "数据库错误")
-		return
-	}
-	category, err := dao.GetCategoryByID(document.CategoryID)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			response.Fail(c, http.StatusNotFound, nil, "分类不存在")
-			return
-		}
-		response.Fail(c, http.StatusInternalServerError, nil, "数据库错误")
+		response.Fail(c, http.StatusInternalServerError, nil, constant.DocumentStatusUpdateFailed)
 		return
 	}
 
-	responseData := gin.H{
-		"infoBrief": gin.H{
-			"name":        document.Name,
-			"document_id": document.ID,
-			"type":        document.Type,
-			"uploadTime":  document.CreatedAt.Format("2006-01-02 15:04:05"),
-			"status":      document.Status,
-			"category":    category.Name,
-			"collections": document.Collections,
-			"readCounts":  document.ReadCounts,
-			"URL":         utils.GetFileURL(document.URL),
-		},
-		"bookISBN": document.BookISBN,
-		"author":   document.Author,
-		"uploader": gin.H{
-			"userId":     uploader.ID,
-			"username":   uploader.Username,
-			"userAvatar": uploader.Avatar,
-			"status":     uploader.Status,
-			"createTime": uploader.CreatedAt.Format("2006-01-02 15:04:05"),
-			"email":      uploader.Email,
-			"role":       uploader.Role,
-		},
-		"Cover":        utils.GetFileURL(document.Cover),
-		"introduction": document.Introduction,
-		"createYear":   document.CreateYear,
-	}
-	// 获取文档标签列表
-	tags, err := dao.GetDocumentTagByDocumentID(document.ID)
-	if err != nil {
-		response.Fail(c, http.StatusInternalServerError, nil, err.Error())
-		return
-	}
-	var tagNames []string
-	for _, tag := range tags {
-		tagNames = append(tagNames, tag.TagName)
-	}
-	responseData["tags"] = tagNames
-
-	response.Success(c, responseData, "文档状态更新成功")
+	response.Success(c, nil, constant.DocumentStatusUpdateSuccess)
 }

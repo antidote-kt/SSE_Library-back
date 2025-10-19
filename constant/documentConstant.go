@@ -6,6 +6,7 @@ const (
 	DocumentStatusClose    = "close"    // 关闭
 	DocumentStatusWithdraw = "withdraw" // 已撤回
 )
+
 const (
 	VideoType = "video"
 	FileType  = "file"
