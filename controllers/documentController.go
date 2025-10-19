@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/antidote-kt/SSE_Library-back/config"
 	"github.com/antidote-kt/SSE_Library-back/constant"
@@ -71,14 +70,6 @@ func ModifyDocument(c *gin.Context) {
 	if request.Introduction != nil {
 		document.Introduction = *request.Introduction
 	}
-	if request.UploadTime != nil {
-		parsedTime, err := time.Parse("2006-01-02 15:04:05", *request.UploadTime)
-		if err != nil {
-			response.Fail(c, http.StatusBadRequest, nil, "时间格式错误")
-			return
-		}
-		document.CreatedAt = parsedTime
-	}
 	if request.Cover != nil {
 		// 先删除旧封面，如果document.cover为空串则不做任何操作
 		err := utils.DeleteFile(document.Cover)
@@ -137,7 +128,7 @@ func ModifyDocument(c *gin.Context) {
 		response.Fail(c, http.StatusInternalServerError, nil, err.Error())
 		return
 	}
-	uploader, err := dao.GetUserByID(document.UploaderID)
+	_, err = dao.GetUserByID(document.UploaderID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			response.Fail(c, http.StatusNotFound, nil, "上传者不存在")
@@ -146,53 +137,6 @@ func ModifyDocument(c *gin.Context) {
 		response.Fail(c, http.StatusInternalServerError, nil, "数据库错误")
 		return
 	}
-	// 优先判断是否是上传文件，再判断是否是视频URL
-	var fileURL string
-	if request.File != nil {
-		fileURL = utils.GetFileURL(document.URL)
-	} else if request.VideoURL != nil {
-		fileURL = document.URL
-	}
-	// 构造返回数据
-	responseData := gin.H{
-		"infoBrief": gin.H{
-			"name":        document.Name,
-			"document_id": document.ID,
-			"type":        document.Type,
-			"uploadTime":  document.CreatedAt.Format("2006-01-02 15:04:05"),
-			"status":      document.Status,
-			"category":    category.Name,
-			"collections": document.Collections,
-			"readCounts":  document.ReadCounts,
-			"URL":         fileURL,
-		},
-		"uploader": gin.H{
-			"userId":     uploader.ID,
-			"username":   uploader.Username,
-			"userAvatar": uploader.Avatar,
-			"status":     uploader.Status,
-			"createTime": uploader.CreatedAt.Format("2006-01-02 15:04:05"),
-			"email":      uploader.Email,
-			"role":       uploader.Role,
-		},
-		"bookISBN":     document.BookISBN,
-		"author":       document.Author,
-		"Cover":        utils.GetFileURL(document.Cover),
-		"introduction": document.Introduction,
-		"createYear":   document.CreateYear,
-	}
 
-	// 获取文档标签列表
-	tags, err := dao.GetDocumentTagByDocumentID(document.ID)
-	if err != nil {
-		response.Fail(c, http.StatusInternalServerError, nil, err.Error())
-		return
-	}
-	var tagNames []string
-	for _, tag := range tags {
-		tagNames = append(tagNames, tag.TagName)
-	}
-	responseData["tags"] = tagNames
-
-	response.Success(c, responseData, "文档修改成功")
+	response.Success(c, nil, "文档修改成功")
 }
