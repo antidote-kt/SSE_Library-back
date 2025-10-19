@@ -23,3 +23,13 @@ func GetCategoryByID(id uint64) (models.Category, error) {
 	}
 	return category, nil
 }
+
+func GetCategoriesByIDs(ids []uint64) ([]models.Category, error) {
+	db := config.GetDB()
+	var categories []models.Category
+	err := db.Where("id IN (?)", ids).Find(&categories).Error
+	if err != nil {
+		return []models.Category{}, err
+	}
+	return categories, nil
+}
