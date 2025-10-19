@@ -41,7 +41,7 @@ func constructDocumentInfo(doc models.Document, category models.Category) gin.H 
 func CollectDocument(c *gin.Context) {
 	var request dto.FavoriteDTO
 	if err := c.ShouldBindJSON(&request); err != nil {
-		response.Fail(c, http.StatusBadRequest, nil, "参数错误")
+		response.Fail(c, http.StatusBadRequest, nil, constant.ParamParseError)
 		return
 	}
 
@@ -49,10 +49,10 @@ func CollectDocument(c *gin.Context) {
 	_, err := dao.GetUserByID(request.UserID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			response.Fail(c, http.StatusNotFound, nil, "用户不存在")
+			response.Fail(c, http.StatusNotFound, nil, constant.UserNotExist)
 			return
 		}
-		response.Fail(c, http.StatusInternalServerError, nil, "数据库错误")
+		response.Fail(c, http.StatusInternalServerError, nil, constant.DatabaseError)
 		return
 	}
 
@@ -60,21 +60,21 @@ func CollectDocument(c *gin.Context) {
 	document, err := dao.GetDocumentByID(request.DocumentID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			response.Fail(c, http.StatusNotFound, nil, "文档不存在")
+			response.Fail(c, http.StatusNotFound, nil, constant.DocumentNotExist)
 			return
 		}
-		response.Fail(c, http.StatusInternalServerError, nil, "数据库错误")
+		response.Fail(c, http.StatusInternalServerError, nil, constant.DatabaseError)
 		return
 	}
 
 	// 检查是否已经收藏（防止重复收藏）
 	exists, err := dao.CheckFavoriteExist(request.UserID, request.DocumentID)
 	if err != nil {
-		response.Fail(c, http.StatusInternalServerError, nil, "检查收藏状态失败")
+		response.Fail(c, http.StatusInternalServerError, nil, constant.FavoriteStatusCheckFailed)
 		return
 	}
 	if exists {
-		response.Fail(c, http.StatusBadRequest, nil, "文档已收藏")
+		response.Fail(c, http.StatusBadRequest, nil, constant.FavoriteAlreadyExistsMsg)
 		return
 	}
 
@@ -87,13 +87,13 @@ func CollectDocument(c *gin.Context) {
 			DocumentID: request.DocumentID,
 		}
 		if err := tx.Create(&favorite).Error; err != nil {
-			return fmt.Errorf("创建收藏记录失败: %v", err)
+			return fmt.Errorf("%v: %v", constant.FavoriteCreateFailed, err)
 		}
 
 		// 更新文档的收藏数
 		document.Collections++
 		if err := tx.Save(&document).Error; err != nil {
-			return fmt.Errorf("更新文档收藏数失败: %v", err)
+			return fmt.Errorf("%v: %v", constant.CollectionUpdateFailed, err)
 		}
 
 		return nil
@@ -107,7 +107,7 @@ func CollectDocument(c *gin.Context) {
 	// 获取用户收藏的所有文档
 	favoriteDocuments, err := dao.GetFavoriteDocumentsByUserID(request.UserID)
 	if err != nil {
-		response.Fail(c, http.StatusInternalServerError, nil, "获取收藏文档列表失败")
+		response.Fail(c, http.StatusInternalServerError, nil, constant.GetFavoriteDocumentFailed)
 		return
 	}
 
@@ -124,13 +124,13 @@ func CollectDocument(c *gin.Context) {
 	}
 
 	// 返回收藏的文档列表
-	response.SuccessWithArray(c, responseData, "收藏成功")
+	response.SuccessWithArray(c, responseData, constant.FavoriteSuccessMsg)
 }
 
 func WithdrawCollection(c *gin.Context) {
 	var request dto.FavoriteDTO
 	if err := c.ShouldBindJSON(&request); err != nil {
-		response.Fail(c, http.StatusBadRequest, nil, "参数错误")
+		response.Fail(c, http.StatusBadRequest, nil, constant.ParamParseError)
 		return
 	}
 
@@ -138,10 +138,10 @@ func WithdrawCollection(c *gin.Context) {
 	_, err := dao.GetUserByID(request.UserID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			response.Fail(c, http.StatusNotFound, nil, "用户不存在")
+			response.Fail(c, http.StatusNotFound, nil, constant.UserNotExist)
 			return
 		}
-		response.Fail(c, http.StatusInternalServerError, nil, "数据库错误")
+		response.Fail(c, http.StatusInternalServerError, nil, constant.DatabaseError)
 		return
 	}
 
@@ -149,21 +149,21 @@ func WithdrawCollection(c *gin.Context) {
 	document, err := dao.GetDocumentByID(request.DocumentID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			response.Fail(c, http.StatusNotFound, nil, "文档不存在")
+			response.Fail(c, http.StatusNotFound, nil, constant.DocumentNotExist)
 			return
 		}
-		response.Fail(c, http.StatusInternalServerError, nil, "数据库错误")
+		response.Fail(c, http.StatusInternalServerError, nil, constant.DatabaseError)
 		return
 	}
 
 	// 检查是否已收藏（必须已收藏才能取消收藏）
 	exists, err := dao.CheckFavoriteExist(request.UserID, request.DocumentID)
 	if err != nil {
-		response.Fail(c, http.StatusInternalServerError, nil, "检查收藏状态失败")
+		response.Fail(c, http.StatusInternalServerError, nil, constant.FavoriteStatusCheckFailed)
 		return
 	}
 	if !exists {
-		response.Fail(c, http.StatusBadRequest, nil, "文档未被收藏")
+		response.Fail(c, http.StatusBadRequest, nil, constant.FavoriteNotExistMsg)
 		return
 	}
 
@@ -172,7 +172,7 @@ func WithdrawCollection(c *gin.Context) {
 	err = db.Transaction(func(tx *gorm.DB) error {
 		// 删除收藏记录
 		if err := tx.Where("user_id = ? AND document_id = ?", request.UserID, request.DocumentID).Delete(&models.Favorite{}).Error; err != nil {
-			return fmt.Errorf("删除收藏记录失败: %v", err)
+			return fmt.Errorf("%v: %v", constant.FavoriteDeleteFailed, err)
 		}
 
 		// 更新文档的收藏数（减少1）
@@ -181,7 +181,7 @@ func WithdrawCollection(c *gin.Context) {
 			document.Collections = 0 // 确保收藏数不会小于0
 		}
 		if err := tx.Save(&document).Error; err != nil {
-			return fmt.Errorf("更新文档收藏数失败: %v", err)
+			return fmt.Errorf("%v: %v", constant.CollectionUpdateFailed, err)
 		}
 
 		return nil
@@ -195,7 +195,7 @@ func WithdrawCollection(c *gin.Context) {
 	// 获取用户收藏的所有文档
 	favoriteDocuments, err := dao.GetFavoriteDocumentsByUserID(request.UserID)
 	if err != nil {
-		response.Fail(c, http.StatusInternalServerError, nil, "获取收藏文档列表失败")
+		response.Fail(c, http.StatusInternalServerError, nil, constant.GetFavoriteDocumentFailed)
 		return
 	}
 
@@ -212,5 +212,5 @@ func WithdrawCollection(c *gin.Context) {
 	}
 
 	// 返回剩余的收藏文档列表
-	response.SuccessWithArray(c, responseData, "取消收藏成功")
+	response.SuccessWithArray(c, responseData, constant.UnfavoriteSuccessMsg)
 }

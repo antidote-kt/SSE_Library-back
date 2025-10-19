@@ -32,16 +32,16 @@ func UploadFile(c *gin.Context) {
 	category, err := dao.GetCategoryByID(req.CategoryID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			response.Fail(c, http.StatusNotFound, nil, "分类不存在")
+			response.Fail(c, http.StatusNotFound, nil, constant.CategoryNotExist)
 		}
-		response.Fail(c, http.StatusInternalServerError, nil, "数据库错误")
+		response.Fail(c, http.StatusInternalServerError, nil, constant.DatabaseError)
 	}
 	var fileURL string
 	// 2. 上传主文件
 	if req.File != nil {
 		fileURL, err = utils.UploadMainFile(req.File, category.Name)
 		if err != nil {
-			response.Fail(c, http.StatusInternalServerError, nil, "上传文件失败")
+			response.Fail(c, http.StatusInternalServerError, nil, constant.FileUploadFailed)
 			return
 		}
 	}
@@ -61,10 +61,10 @@ func UploadFile(c *gin.Context) {
 	uploader, err := dao.GetUserByID(req.UploaderID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			response.Fail(c, http.StatusNotFound, nil, "上传用户不存在")
+			response.Fail(c, http.StatusNotFound, nil, constant.UploaderNotExist)
 			return
 		}
-		response.Fail(c, http.StatusInternalServerError, nil, "数据库错误")
+		response.Fail(c, http.StatusInternalServerError, nil, constant.DatabaseError)
 		return
 	}
 	document := models.Document{
@@ -93,7 +93,7 @@ func UploadFile(c *gin.Context) {
 	if req.Author != nil {
 		document.Author = *req.Author
 	} else {
-		document.Author = "佚名"
+		document.Author = constant.DefaultAuthor
 	}
 
 	if req.Introduction != nil {
@@ -106,7 +106,7 @@ func UploadFile(c *gin.Context) {
 	if req.UploadTime != nil {
 		parsedTime, err := time.Parse("2006-01-02 15:04:05", *req.UploadTime)
 		if err != nil {
-			response.Fail(c, http.StatusBadRequest, nil, "时间格式错误")
+			response.Fail(c, http.StatusBadRequest, nil, constant.TimeFormatError)
 			return
 		}
 		document.CreatedAt = parsedTime
@@ -123,7 +123,7 @@ func UploadFile(c *gin.Context) {
 	})
 	// 检查事务执行结果
 	if err != nil {
-		response.Fail(c, http.StatusInternalServerError, nil, "文档保存失败")
+		response.Fail(c, http.StatusInternalServerError, nil, constant.DocumentCreateFail)
 		return
 	}
 
@@ -161,7 +161,7 @@ func UploadFile(c *gin.Context) {
 		"introduction": document.Introduction,
 		"createYear":   document.CreateYear,
 	}
-	response.Success(c, responseData, "上传成功")
+	response.Success(c, responseData, constant.DocumentCreateSuccess)
 }
 
 // 验证文件大小
@@ -172,7 +172,7 @@ func validateFileSize(size int64) bool {
 // 绑定并验证请求参数
 func bindAndValidateRequest(c *gin.Context, req *dto.UploadDTO) error {
 	if err := c.ShouldBind(req); err != nil {
-		return fmt.Errorf("参数绑定失败:" + err.Error())
+		return errors.New(constant.ParamParseError)
 	}
 	if req.File == nil {
 		return nil

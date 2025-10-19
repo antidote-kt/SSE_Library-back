@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 
 	"github.com/antidote-kt/SSE_Library-back/config"
@@ -23,7 +22,7 @@ func ModifyDocument(c *gin.Context) {
 	var oldType string
 	db := config.GetDB()
 	if err := c.ShouldBind(&request); err != nil {
-		response.Fail(c, http.StatusBadRequest, nil, "参数错误")
+		response.Fail(c, http.StatusBadRequest, nil, constant.ParamParseError)
 		return
 	}
 
@@ -31,10 +30,10 @@ func ModifyDocument(c *gin.Context) {
 	document, err := dao.GetDocumentByID(request.DocumentID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			response.Fail(c, http.StatusNotFound, nil, "文档不存在")
+			response.Fail(c, http.StatusNotFound, nil, constant.DocumentNotExist)
 			return
 		}
-		response.Fail(c, http.StatusInternalServerError, nil, "数据库查询失败")
+		response.Fail(c, http.StatusInternalServerError, nil, constant.DatabaseError)
 		return
 	}
 	oldType = document.Type
@@ -47,10 +46,10 @@ func ModifyDocument(c *gin.Context) {
 		category, err = dao.GetCategoryByID(*request.CategoryID)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				response.Fail(c, http.StatusNotFound, nil, "分类不存在")
+				response.Fail(c, http.StatusNotFound, nil, constant.CategoryNotExist)
 				return
 			}
-			response.Fail(c, http.StatusInternalServerError, nil, "数据库错误")
+			response.Fail(c, http.StatusInternalServerError, nil, constant.DatabaseError)
 			return
 		}
 		document.CategoryID = category.ID
@@ -74,13 +73,13 @@ func ModifyDocument(c *gin.Context) {
 		// 先删除旧封面，如果document.cover为空串则不做任何操作
 		err := utils.DeleteFile(document.Cover)
 		if err != nil {
-			response.Fail(c, http.StatusInternalServerError, nil, "旧封面删除失败")
+			response.Fail(c, http.StatusInternalServerError, nil, constant.OldCoverDeleteFailed)
 			return
 		}
 		//上传新封面
 		document.Cover, err = utils.UploadCoverImage(request.Cover, category.Name)
 		if err != nil {
-			response.Fail(c, http.StatusInternalServerError, nil, "封面上传失败")
+			response.Fail(c, http.StatusInternalServerError, nil, constant.CoverUploadFailed)
 			return
 		}
 	}
@@ -89,7 +88,7 @@ func ModifyDocument(c *gin.Context) {
 		if oldType != constant.VideoType {
 			err := utils.DeleteFile(document.URL)
 			if err != nil {
-				response.Fail(c, http.StatusInternalServerError, nil, "旧文件删除失败")
+				response.Fail(c, http.StatusInternalServerError, nil, constant.OldFileDeleteFailed)
 				return
 			}
 		}
@@ -98,7 +97,7 @@ func ModifyDocument(c *gin.Context) {
 		} else if request.File != nil {
 			document.URL, err = utils.UploadMainFile(request.File, category.Name)
 			if err != nil {
-				response.Fail(c, http.StatusInternalServerError, nil, "文件上传失败")
+				response.Fail(c, http.StatusInternalServerError, nil, constant.FileUploadFailed)
 				return
 			}
 		}
@@ -113,7 +112,7 @@ func ModifyDocument(c *gin.Context) {
 		if len(request.Tags) > 0 {
 			// 删除原有的标签映射
 			if err := dao.DeleteDocumentTagByDocumentIDWithTx(tx, document.ID); err != nil {
-				return fmt.Errorf("标签更新失败")
+				return errors.New(constant.OldTagDeleteFailed)
 			}
 			// 创建新标签映射
 			if err := dao.CreateDocumentTagWithTx(tx, document.ID, request.Tags); err != nil {
@@ -131,12 +130,12 @@ func ModifyDocument(c *gin.Context) {
 	_, err = dao.GetUserByID(document.UploaderID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			response.Fail(c, http.StatusNotFound, nil, "上传者不存在")
+			response.Fail(c, http.StatusNotFound, nil, constant.UploaderNotExist)
 			return
 		}
-		response.Fail(c, http.StatusInternalServerError, nil, "数据库错误")
+		response.Fail(c, http.StatusInternalServerError, nil, constant.DatabaseError)
 		return
 	}
 
-	response.Success(c, nil, "文档修改成功")
+	response.Success(c, nil, constant.DocumentUpdateSuccess)
 }
