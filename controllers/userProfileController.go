@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/antidote-kt/SSE_Library-back/dao"
 	"github.com/antidote-kt/SSE_Library-back/dto"
@@ -20,7 +21,18 @@ func GetProfile(c *gin.Context) {
 		return
 	}
 	userClaims := claims.(*utils.MyClaims)
+	//将路径参数的用户id提取出来并转化为int64类型，与JWT比较看访问的个人主页接口是否与用户本人匹配
+	paramUserID := c.Param("user_id")
+	targetID, err := strconv.ParseUint(paramUserID, 10, 64)
+	if err != nil {
+		response.Fail(c, http.StatusBadRequest, nil, "无效的用户ID格式")
+		return
+	}
 	userID := userClaims.UserID
+	if userID != targetID {
+		response.Fail(c, http.StatusUnauthorized, nil, "访问的主页不是您本人的主页")
+		return
+	}
 
 	// 2. 并行获取用户基本信息、收藏列表、历史记录
 	userChan := make(chan models.User)
@@ -75,6 +87,7 @@ func GetProfile(c *gin.Context) {
 	// 3. 组装成 DTO
 	homepageDTO := dto.HomepageDTO{
 		UserBrief:      buildUserBriefDTO(user),
+		Password:       user.Password,
 		CollectionList: buildDocumentDetailDTOs(collectionList),
 		HistoryList:    buildDocumentDetailDTOs(historyList),
 	}
@@ -87,7 +100,7 @@ func ModifyInfo(c *gin.Context) {
 	var req dto.ModifyInfoDTO
 
 	// 1. 绑定并验证参数
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if err := c.ShouldBind(&req); err != nil {
 		response.Fail(c, http.StatusBadRequest, nil, "参数格式错误: "+err.Error())
 		return
 	}
@@ -130,8 +143,21 @@ func ModifyInfo(c *gin.Context) {
 		user.Email = *req.Email
 		updated = true
 	}
-	if req.UserAvatar != nil {
-		user.Avatar = *req.UserAvatar
+	if req.UserAvatar != nil && req.UserAvatar.Size != 0 {
+		// 检查用户是否上传了新头像，有的话删除原头像
+		err := utils.DeleteFile(user.Avatar)
+		if err != nil {
+			response.Fail(c, http.StatusInternalServerError, nil, "头像删除失败")
+			return
+		}
+		// 然后上传新头像到腾讯云
+		avatarURL, err := utils.UploadAvatar(req.UserAvatar)
+		if err != nil {
+			response.Fail(c, http.StatusInternalServerError, nil, "头像上传失败")
+			return
+		}
+		//最后更新头像链接到数据模型
+		user.Avatar = avatarURL
 		updated = true
 	}
 
@@ -160,7 +186,7 @@ func buildUserBriefDTO(user models.User) dto.UserBriefDTO {
 	return dto.UserBriefDTO{
 		UserID:     user.ID,
 		Username:   user.Username,
-		UserAvatar: utils.GetFileURL(user.Avatar),
+		UserAvatar: user.Avatar,
 		Status:     user.Status,
 		CreateTime: user.CreatedAt.Format("2006-01-02 15:04:05"),
 		Email:      user.Email,

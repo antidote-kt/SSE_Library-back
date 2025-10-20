@@ -55,6 +55,9 @@ func UploadFile(key string, file io.Reader) error {
 }
 
 func DeleteFile(filename string) error {
+	if filename == "" {
+		return nil
+	}
 	client, _ := getCOSClient()
 	_, err := client.Object.Delete(context.Background(), filename)
 	return err
@@ -113,6 +116,29 @@ func UploadCoverImage(cover *multipart.FileHeader, category string) (string, err
 	}
 
 	return coverPath, nil
+}
+
+// 上传用户头像
+func UploadAvatar(avatar *multipart.FileHeader) (string, error) {
+	if avatar == nil || avatar.Size == 0 {
+		return "", fmt.Errorf("用户没有上传头像")
+	}
+
+	avatarFile, err := avatar.Open()
+	if err != nil {
+		return "", fmt.Errorf("打开头像文件失败")
+	}
+	defer avatarFile.Close()
+
+	// 使用新的路径生成
+	secureFilename := generateSecureFilename(avatar.Filename)
+	avatarPath := fmt.Sprintf("avatars/%s", secureFilename)
+	err = UploadFile(avatarPath, avatarFile)
+	if err != nil {
+		return "", fmt.Errorf("头像上传失败")
+	}
+
+	return avatarPath, nil
 }
 
 // 生成安全的文件名

@@ -75,6 +75,6 @@ func GetUsers(username *string, userID *uint64) ([]models.User, error) {
 		query = query.Where("id = ?", *userID)
 	}
 
-	err := query.Find(&users).Error
+	err := query.Find(&users).Error // 如果两者都没提供（即获取用户列表接口），则查询所有数据，也就是获取所有用户。
 	return users, err
 }

@@ -24,12 +24,15 @@ func GetCategoryByID(id uint64) (models.Category, error) {
 	return category, nil
 }
 
+// GetCategoriesByIDs 根据一组ID批量获取分类
 func GetCategoriesByIDs(ids []uint64) ([]models.Category, error) {
 	db := config.GetDB()
 	var categories []models.Category
-	err := db.Where("id IN (?)", ids).Find(&categories).Error
-	if err != nil {
-		return []models.Category{}, err
+	// 如果传入的ID列表为空，直接返回空切片，避免无效的数据库查询
+	if len(ids) == 0 {
+		return categories, nil
 	}
-	return categories, nil
+	// 使用 "id IN ?" 进行批量查询，并将结果填充到categories切片中
+	err := db.Where("id IN ?", ids).Find(&categories).Error
+	return categories, err
 }
