@@ -19,7 +19,7 @@ type MyClaims struct {
 }
 
 // mySecret 用于签名的密钥，请务必保密并从配置文件中读取，这里为了演示写成常量
-var mySecret = []byte("gI1fD/gqA9sL8tP3jR7vY6zC5xW2bV1aU0eQ8oI9kFc=")
+var mySecret = []byte("your-secret")
 
 const TokenExpireDuration = time.Hour * 24 // Token有效期，这里暂时设为24小时
 
