@@ -4,16 +4,30 @@ import "mime/multipart"
 
 // RegisterDTO 定义了用户注册时需要绑定的数据
 type RegisterDTO struct {
-	Email    string                `form:"email" binding:"required,email"`
-	Username string                `form:"username" binding:"required,min=3,max=20"`
-	Avatar   *multipart.FileHeader `form:"userAvatar,omitempty"`
-	Password string                `form:"password" binding:"required,min=6,max=20"`
+	Email            string                `form:"email" binding:"required,email"`
+	Username         string                `form:"username" binding:"required,min=3,max=20"`
+	Avatar           *multipart.FileHeader `form:"userAvatar,omitempty"`
+	Password         string                `form:"password" binding:"required,min=6,max=20"`
+	VerificationCode string                `form:"Code" binding:"required,min=6,max=6"`
 }
 
 // LoginDTO 定义了用户登录时需要绑定的数据
 type LoginDTO struct {
 	Email    string `json:"email" binding:"required"`
 	Password string `json:"password" binding:"required"`
+}
+
+// ChangePasswordDTO 定义了用户修改密码时需要绑定的数据
+type ChangePasswordDTO struct {
+	Email            string `json:"email" binding:"required,email"`
+	NewPassword      string `json:"newPassword" binding:"required,min=6,max=20"`
+	VerificationCode string `json:"Code" binding:"required,min=6,max=6"`
+}
+
+// SendCodeDTO 定义了请求发送验证码时需要绑定的数据
+type SendCodeDTO struct {
+	Email string `json:"email" binding:"required,email"`
+	Usage string `json:"usage" binding:"required"` // 例如: "reset-password", "register"
 }
 
 // ModifyInfoDTO 定义了用户修改个人资料时需要绑定的数据（PS：查看个人主页请求参数只有路径参数，无需专门结构体解析）

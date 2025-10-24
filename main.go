@@ -8,6 +8,8 @@ import (
 func main() {
 	config.InitConfig()
 	config.InitDatabase()
+	config.InitRedis()
+	config.InitEmail()
 	router := router.SetupRouter()
 	router.Run()
 }
