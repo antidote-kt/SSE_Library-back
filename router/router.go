@@ -13,6 +13,8 @@ func SetupRouter() *gin.Engine {
 
 	api.POST("/login", controllers.Login)
 	api.POST("/register", controllers.RegisterUser)
+	api.POST("/VCode", controllers.SendVerificationCode) // 请求验证码（临时生成，采用POST）
+	api.PUT("/Password", controllers.ChangePassword)     //修改密码
 
 	// --- 需要认证才能访问的路由 ---
 	authed := api.Group("/")
@@ -22,7 +24,6 @@ func SetupRouter() *gin.Engine {
 		authed.GET("/:document_id/comments", controllers.GetComments) // 获取对某书的评论列表
 		authed.GET("/user/:user_id", controllers.GetProfile)          //查看个人主页
 		authed.PUT("/user/:user_id", controllers.ModifyInfo)          //修改个人资料
-		//authed.PUT("/Password", controllers.ModifyPassword)
 
 		// 用户相关操作
 		userApi := authed.Group("/user")
