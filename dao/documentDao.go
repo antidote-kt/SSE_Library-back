@@ -122,7 +122,6 @@ func GetDocumentByCondition(condition string) ([]models.Document, error) {
 func SearchDocumentsByParams(request dto.SearchDocumentDTO) ([]models.Document, error) {
 	db := config.GetDB()
 	query := db.Model(&models.Document{})
-
 	// 首先根据key搜索 - 如果TypeOfKey参数传了，则只搜索指定字段，否则搜索全部字段（包括标签）
 	if request.Key != nil && *request.Key != "" {
 		key := *request.Key

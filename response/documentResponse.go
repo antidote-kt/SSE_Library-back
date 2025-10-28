@@ -33,7 +33,7 @@ type DocumentDetailResponse struct {
 	BookISBN     string            `json:"bookISBN"`
 	Author       string            `json:"author"`
 	Uploader     UploaderResponse  `json:"uploader"`
-	Cover        string            `json:"Cover"`
+	Cover        string            `json:"cover"`
 	Tags         []string          `json:"tags"`
 	Introduction string            `json:"introduction"`
 	CreateYear   string            `json:"createYear"`
@@ -82,7 +82,7 @@ func BuildDocumentDetailResponse(document models.Document) (DocumentDetailRespon
 	uploaderResponse := UploaderResponse{
 		UserID:     uploader.ID,
 		Username:   uploader.Username,
-		UserAvatar: uploader.Avatar,
+		UserAvatar: utils.GetFileURL(uploader.Avatar),
 		Status:     uploader.Status,
 		CreateTime: uploader.CreatedAt.Format("2006-01-02 15:04:05"),
 		Email:      uploader.Email,

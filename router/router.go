@@ -26,13 +26,13 @@ func SetupRouter() *gin.Engine {
 		authed.PUT("/user/:user_id", controllers.ModifyInfo)          //修改个人资料
 		authed.GET("/document/:id", controllers.GetDocumentByID)      // 获取文档详情
 		authed.GET("/searchdoc", controllers.SearchDocument)          //搜索文档
+		authed.PUT("/document", controllers.ModifyDocument)           // 文件信息修改（上传该文件的用户才能修改）
 
 		// 用户相关操作
 		userApi := authed.Group("/user")
 		{
 			userApi.POST("/document", controllers.UploadDocument)           // 文档上传（需要解析用户id，逻辑绑定到文档表）
 			userApi.DELETE("/withdrawUpload", controllers.WithdrawUpload)   // 文件撤回（谁上传谁能撤回）
-			userApi.PUT("/document", controllers.ModifyDocument)            // 文件信息修改（上传该文件的用户才能修改）
 			userApi.POST("/collect", controllers.CollectDocument)           // 收藏资料
 			userApi.DELETE("/collect", controllers.WithdrawCollection)      // 取消收藏
 			userApi.GET("/document", controllers.GetUserUploadDocument)     //用户查看上传文件列表
@@ -47,11 +47,10 @@ func SetupRouter() *gin.Engine {
 		{
 			adminApi.PUT("/user", controllers.UpdateUserStatus) //更新用户状态
 			adminApi.GET("/user", controllers.GetUsers)
-			adminApi.GET("/usersList", controllers.GetUsers) // GetUsers同时支持获取列表和搜索
-			adminApi.PUT("/file", controllers.AdminModifyDocumentStatus)
-			adminApi.POST("/fileStatus", controllers.AdminModifyDocumentStatus)
-			adminApi.GET("/comments", controllers.GetAllComments)  // 管理员获取所有评论（需要认证）
-			adminApi.DELETE("/comment", controllers.DeleteComment) // 管理员删除评论（需要认证）
+			adminApi.GET("/usersList", controllers.GetUsers)                        // GetUsers同时支持获取列表和搜索
+			adminApi.PUT("/document/status", controllers.AdminModifyDocumentStatus) //管理员修改文档状态
+			adminApi.GET("/comments", controllers.GetAllComments)                   // 管理员获取所有评论（需要认证）
+			adminApi.DELETE("/comment", controllers.DeleteComment)                  // 管理员删除评论（需要认证）
 
 		}
 	}
