@@ -43,18 +43,18 @@ func CreateDocumentWithTx(tx *gorm.DB, document models.Document, tagNames []stri
 					TagName: tagName,
 				}
 				if err := tx.Create(&tag).Error; err != nil {
-					return models.Document{}, fmt.Errorf("创建标签失败: %s, 错误: %v", tagName, err)
+					return models.Document{}, fmt.Errorf("%v: %s", constant.TagCreateFailed, tagName)
 				}
 			} else {
 				// 其他数据库错误
-				return models.Document{}, fmt.Errorf("查询标签失败: %s, 错误: %v", tagName, err)
+				return models.Document{}, fmt.Errorf("%vv: %s", constant.TagGetFailed, tagName)
 			}
 		}
 		tags = append(tags, tag)
 	}
 	// 创建文档
 	if err := tx.Create(&document).Error; err != nil {
-		return models.Document{}, fmt.Errorf("创建文档失败: %v", err)
+		return models.Document{}, fmt.Errorf(constant.DocumentCreateFail)
 	}
 
 	// 创建文档与标签的关联
@@ -65,7 +65,7 @@ func CreateDocumentWithTx(tx *gorm.DB, document models.Document, tagNames []stri
 			TagID:      tag.ID,
 		}
 		if err := tx.Create(&docTag).Error; err != nil {
-			return models.Document{}, fmt.Errorf("创建文档标签关联失败: %v", err)
+			return models.Document{}, fmt.Errorf(constant.DocumentTagCreateFailed)
 		}
 	}
 	return document, nil
@@ -74,7 +74,7 @@ func CreateDocumentWithTx(tx *gorm.DB, document models.Document, tagNames []stri
 
 func UpdateDocumentWithTx(tx *gorm.DB, document models.Document) error {
 	if document.ID == 0 {
-		return errors.New("文档ID不能为空")
+		return errors.New(constant.DocumentIDLack)
 	}
 	return tx.Save(&document).Error
 }
@@ -82,18 +82,18 @@ func UpdateDocumentWithTx(tx *gorm.DB, document models.Document) error {
 func UpdateDocument(document models.Document) error {
 	db := config.GetDB()
 	if document.ID == 0 {
-		return errors.New("文档ID不能为空")
+		return errors.New(constant.DocumentIDLack)
 	}
 	return db.Save(&document).Error
 }
 
 func DeleteDocumentWithTx(tx *gorm.DB, document models.Document) error {
 	if document.ID == 0 {
-		return errors.New("文档ID不能为空")
+		return errors.New(constant.DocumentIDLack)
 	}
 	err := tx.Select("Tags").Delete(&document).Error
 	if err != nil {
-		return errors.New("文档删除失败")
+		return errors.New(constant.DocumentDeletedFailed)
 	}
 	return nil
 }

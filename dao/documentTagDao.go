@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/antidote-kt/SSE_Library-back/config"
+	"github.com/antidote-kt/SSE_Library-back/constant"
 	"github.com/antidote-kt/SSE_Library-back/models"
 	"gorm.io/gorm"
 )
@@ -18,7 +19,7 @@ func CreateDocumentTagWithTx(tx *gorm.DB, documentID uint64, tags []string) erro
 				TagName: tagName,
 			}
 			if err := tx.Create(&tag).Error; err != nil {
-				return fmt.Errorf("创建标签失败: %s", tagName)
+				return fmt.Errorf("%v: %s", constant.TagCreateFailed, tagName)
 			}
 		}
 
@@ -28,7 +29,7 @@ func CreateDocumentTagWithTx(tx *gorm.DB, documentID uint64, tags []string) erro
 			TagID:      tag.ID,
 		}
 		if err := tx.Create(&documentTag).Error; err != nil {
-			return fmt.Errorf("创建标签关联失败")
+			return fmt.Errorf(constant.DocumentTagCreateFailed)
 		}
 	}
 	return nil
@@ -48,7 +49,7 @@ func GetDocumentTagByDocumentID(documentID uint64) ([]models.Tag, error) {
 	var documentTags []models.DocumentTag
 	err := db.Where("document_id = ?", documentID).Find(&documentTags).Error
 	if err != nil {
-		return nil, fmt.Errorf("查询文档标签关联失败: %v", err)
+		return nil, fmt.Errorf(constant.DocumentTagGetFailed)
 	}
 
 	// 提取标签ID
@@ -66,7 +67,7 @@ func GetDocumentTagByDocumentID(documentID uint64) ([]models.Tag, error) {
 	var tags []models.Tag
 	err = db.Where("id IN ?", tagIDs).Find(&tags).Error
 	if err != nil {
-		return nil, fmt.Errorf("查询标签失败: %v", err)
+		return nil, fmt.Errorf(constant.TagGetFailed)
 	}
 
 	return tags, nil

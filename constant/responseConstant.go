@@ -15,6 +15,7 @@ const (
 	FavoriteAlreadyExistsMsg  = "文档已收藏"
 	FavoriteNotExistMsg       = "文档未被收藏"
 	FavoriteListSuccessMsg    = "获取收藏列表成功"
+	FavoriteGetFailed         = "查询收藏记录失败"
 	FavoriteStatusCheckFailed = "检查收藏状态失败"
 	FavoriteCreateFailed      = "创建收藏记录失败"
 	FavoriteDeleteFailed      = "删除收藏记录失败"
@@ -34,18 +35,28 @@ const (
 	DocumentStatusUpdateSuccess = "文档状态更新成功"
 	DocumentStatusUpdateFailed  = "文档状态更新失败"
 	DocumentUpdateSuccess       = "文档更新成功"
+	DocumentDeletedFailed       = "文档删除失败"
 	DocumentUpdateFail          = "文档更新失败"
 	OldCoverDeleteFailed        = "旧封面删除失败"
 	CoverUploadFailed           = "封面上传失败"
 	OldFileDeleteFailed         = "旧文件删除失败"
 	FileUploadFailed            = "文件上传失败"
-	OldTagDeleteFailed          = "标签删除失败"
 	CollectionUpdateFailed      = "更新文档收藏数失败"
 	GetFavoriteDocumentFailed   = "获取收藏文档列表失败"
 	DefaultAuthor               = "佚名"
 	NotAllowWithdrawOthers      = "不允许撤回其他人的文档"
 	NotAllowWithdraw            = "文档不在审核中，不允许撤回"
 	DocumentObtain              = "文档获取成功"
+	DocumentTagCreateFailed     = "创建文档标签关联失败"
+	DocumentTagGetFailed        = "文档标签关联查询失败"
+	DocumentIDLack              = "文档ID不能为空"
+)
+
+// Tag相关常量
+const (
+	TagCreateFailed    = "标签创建失败"
+	TagGetFailed       = "标签查询失败"
+	OldTagDeleteFailed = "标签删除失败"
 )
 
 // 分类相关常量
