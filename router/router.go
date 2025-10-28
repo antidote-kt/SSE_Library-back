@@ -24,11 +24,13 @@ func SetupRouter() *gin.Engine {
 		authed.GET("/:document_id/comments", controllers.GetComments) // 获取对某书的评论列表
 		authed.GET("/user/:user_id", controllers.GetProfile)          //查看个人主页
 		authed.PUT("/user/:user_id", controllers.ModifyInfo)          //修改个人资料
+		authed.GET("/document/:id", controllers.GetDocumentByID)      // 获取文档详情
+		authed.GET("/searchdoc", controllers.SearchDocument)          //搜索文档
 
 		// 用户相关操作
 		userApi := authed.Group("/user")
 		{
-			userApi.POST("/document", controllers.UploadFile)               // 文档上传（需要解析用户id，逻辑绑定到文档表）
+			userApi.POST("/document", controllers.UploadDocument)           // 文档上传（需要解析用户id，逻辑绑定到文档表）
 			userApi.DELETE("/withdrawUpload", controllers.WithdrawUpload)   // 文件撤回（谁上传谁能撤回）
 			userApi.PUT("/document", controllers.ModifyDocument)            // 文件信息修改（上传该文件的用户才能修改）
 			userApi.POST("/collect", controllers.CollectDocument)           // 收藏资料

@@ -17,11 +17,8 @@ import (
 	"gorm.io/gorm"
 )
 
-// 最大文件大小 (10MB)
-const maxFileSize = 10 << 20
-
 // UploadFile 处理文件上传的主函数
-func UploadFile(c *gin.Context) {
+func UploadDocument(c *gin.Context) {
 	db := config.GetDB()
 	var req dto.UploadDTO
 	// 1. 绑定并验证请求参数
@@ -127,46 +124,24 @@ func UploadFile(c *gin.Context) {
 		return
 	}
 
-	if req.File != nil {
-		fileURL = utils.GetFileURL(document.URL)
-	} else if req.VideoURL != nil {
-		fileURL = document.URL
-	}
 	// 5. 返回成功响应
-	responseData := gin.H{
-		"infoBrief": gin.H{
-			"name":        document.Name,
-			"document_id": document.ID,
-			"type":        document.Type,
-			"uploadTime":  document.CreatedAt.Format("2006-01-02 15:04:05"),
-			"status":      document.Status,
-			"category":    category.Name,
-			"collections": document.Collections,
-			"readCounts":  document.ReadCounts,
-			"URL":         fileURL,
-		},
-		"bookISBN": document.BookISBN,
-		"author":   document.Author,
-		"uploader": gin.H{
-			"userId":     uploader.ID,
-			"username":   uploader.Username,
-			"userAvatar": uploader.Avatar,
-			"status":     uploader.Status,
-			"createTime": uploader.CreatedAt.Format("2006-01-02 15:04:05"),
-			"email":      uploader.Email,
-			"role":       uploader.Role,
-		},
-		"Cover":        utils.GetFileURL(document.Cover),
-		"tags":         req.Tags,
-		"introduction": document.Introduction,
-		"createYear":   document.CreateYear,
+	// 由于刚创建的文档可能还没有标签，我们先使用BuildDocumentDetailResponse创建基础结构
+	docDetailResponse, err := response.BuildDocumentDetailResponse(document)
+	if err != nil {
+		// 如果构建响应失败，仍返回基本成功信息
+		response.Fail(c, http.StatusInternalServerError, nil, constant.DatabaseError)
+		return
 	}
-	response.Success(c, responseData, constant.DocumentCreateSuccess)
+
+	// 更新响应中的标签为上传时提供的标签，因为刚创建的文档可能还没有从数据库获取到标签
+	docDetailResponse.Tags = req.Tags
+
+	response.SuccessWithData(c, docDetailResponse, constant.DocumentCreateSuccess)
 }
 
 // 验证文件大小
 func validateFileSize(size int64) bool {
-	return size > 0 && size <= maxFileSize
+	return size > 0 && size <= constant.MaxFileSize
 }
 
 // 绑定并验证请求参数
@@ -178,7 +153,7 @@ func bindAndValidateRequest(c *gin.Context, req *dto.UploadDTO) error {
 		return nil
 	}
 	if !validateFileSize(req.File.Size) {
-		return fmt.Errorf("文件大小不能超过%vMB", maxFileSize/1024/1024)
+		return fmt.Errorf("文件大小不能超过%vMB", constant.MaxFileSize/1024/1024)
 	}
 
 	return nil

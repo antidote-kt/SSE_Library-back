@@ -45,6 +45,7 @@ const (
 	DefaultAuthor               = "佚名"
 	NotAllowWithdrawOthers      = "不允许撤回其他人的文档"
 	NotAllowWithdraw            = "文档不在审核中，不允许撤回"
+	DocumentObtain              = "文档获取成功"
 )
 
 // 分类相关常量
@@ -54,8 +55,10 @@ const (
 
 // 用户相关常量
 const (
-	UserNotExist = "用户不存在"
-	UserIDLack   = "缺少userId参数"
+	UserNotExist      = "用户不存在"
+	UserIDLack        = "缺少userId参数"
+	GetUserInfoFailed = "无法获取用户信息，请重新登录"
+	NonSelf           = "非用户本人，不允许访问"
 )
 
 // 评论失败相关常量

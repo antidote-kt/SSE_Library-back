@@ -3,6 +3,7 @@ package controllers
 import (
 	"errors"
 	"net/http"
+	"strconv"
 
 	"github.com/antidote-kt/SSE_Library-back/config"
 	"github.com/antidote-kt/SSE_Library-back/constant"
@@ -15,6 +16,7 @@ import (
 	"gorm.io/gorm"
 )
 
+// 修改文档
 func ModifyDocument(c *gin.Context) {
 	var request dto.ModifyDocumentDTO
 	var category models.Category
@@ -138,4 +140,71 @@ func ModifyDocument(c *gin.Context) {
 	}
 
 	response.Success(c, nil, constant.DocumentUpdateSuccess)
+}
+
+// 获取文档详情
+func GetDocumentByID(c *gin.Context) {
+	documentIDStr := c.Param("id")
+	documentID, err := strconv.ParseUint(documentIDStr, 10, 64)
+	if err != nil {
+		response.Fail(c, http.StatusInternalServerError, nil, constant.ParamParseError)
+		return
+	}
+	document, err := dao.GetDocumentByID(documentID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			response.Fail(c, http.StatusNotFound, nil, constant.DocumentNotExist)
+			return
+		}
+		response.Fail(c, http.StatusInternalServerError, nil, constant.DatabaseError)
+		return
+	}
+
+	// 构建文档详情响应
+	docDetailResponse, err := response.BuildDocumentDetailResponse(document)
+	if err != nil {
+		response.Fail(c, http.StatusInternalServerError, nil, constant.DatabaseError)
+		return
+	}
+
+	response.SuccessWithData(c, docDetailResponse, constant.DocumentObtain)
+}
+
+func SearchDocument(c *gin.Context) {
+	var request dto.SearchDocumentDTO
+	if err := c.ShouldBind(&request); err != nil {
+		response.Fail(c, http.StatusBadRequest, nil, constant.ParamParseError)
+		return
+	}
+	if request.CategoryID != nil {
+		_, err := dao.GetCategoryByID(*request.CategoryID)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				response.Fail(c, http.StatusNotFound, nil, constant.CategoryNotExist)
+				return
+			}
+			response.Fail(c, http.StatusInternalServerError, nil, constant.DatabaseError)
+			return
+		}
+	}
+
+	// 使用DAO层进行搜索
+	documents, err := dao.SearchDocumentsByParams(request)
+	if err != nil {
+		response.Fail(c, http.StatusInternalServerError, nil, constant.DatabaseError)
+		return
+	}
+
+	// 构建响应数据
+	var results []response.DocumentDetailResponse
+	for _, document := range documents {
+		docDetailResponse, err := response.BuildDocumentDetailResponse(document)
+		if err != nil {
+			response.Fail(c, http.StatusInternalServerError, nil, constant.DatabaseError)
+			return
+		}
+		results = append(results, docDetailResponse)
+	}
+
+	response.SuccessWithData(c, results, constant.DocumentObtain)
 }

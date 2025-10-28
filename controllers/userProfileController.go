@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/antidote-kt/SSE_Library-back/constant"
 	"github.com/antidote-kt/SSE_Library-back/dao"
 	"github.com/antidote-kt/SSE_Library-back/dto"
 	"github.com/antidote-kt/SSE_Library-back/models"
@@ -15,7 +16,7 @@ import (
 // GetProfile 获取当前登录用户的个人主页信息
 func GetProfile(c *gin.Context) {
 	// 1. 从JWT中间件获取用户信息
-	claims, exists := c.Get("user_claims")
+	claims, exists := c.Get(constant.UserClaims)
 	if !exists {
 		response.Fail(c, http.StatusUnauthorized, nil, "无法获取用户信息，请重新登录")
 		return
@@ -108,7 +109,7 @@ func ModifyInfo(c *gin.Context) {
 	// 2. 从JWT中间件获取用户信息
 	claims, exists := c.Get("user_claims")
 	if !exists {
-		response.Fail(c, http.StatusUnauthorized, nil, "无法获取用户信息，请重新登录")
+		response.Fail(c, http.StatusUnauthorized, nil, constant.GetUserInfoFailed)
 		return
 	}
 	userClaims := claims.(*utils.MyClaims)

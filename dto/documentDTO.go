@@ -46,6 +46,18 @@ type ModifyDocumentDTO struct {
 	Type         *string  `form:"type,omitempty"`
 	Introduction *string  `form:"introduction,omitempty"`
 }
+type SearchDocumentDTO struct {
+	// 筛选科目
+	CategoryID *uint64 `form:"categoryId,omitempty"`
+	// 搜索关键词
+	Key *string `form:"key,omitempty"`
+	// 关键词的类型
+	TypeOfKey *string `json:"typeOfKey,omitempty"`
+	// 筛选文件类型
+	Type *string `form:"type,omitempty"`
+	// 筛选创作时间s
+	Year *string `form:"year,omitempty"`
+}
 type AdminModifyDocumentStatusRequest struct {
 	DocumentID uint64  `form:"document_id"`
 	Name       *string `form:"name,omitempty"`

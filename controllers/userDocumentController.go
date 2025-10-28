@@ -20,6 +20,17 @@ func WithdrawUpload(c *gin.Context) {
 		response.Fail(c, http.StatusBadRequest, nil, constant.ParamParseError)
 		return
 	}
+	claims, exists := c.Get(constant.UserClaims)
+	if !exists {
+		response.Fail(c, http.StatusUnauthorized, nil, constant.GetUserInfoFailed)
+		return
+	}
+	userClaims := claims.(*utils.MyClaims)
+
+	if userClaims.UserID != request.UserID {
+		response.Fail(c, http.StatusUnauthorized, nil, constant.NonSelf)
+		return
+	}
 
 	// 查找对应文档
 	document, err := dao.GetDocumentByID(request.DocumentID)
@@ -33,7 +44,7 @@ func WithdrawUpload(c *gin.Context) {
 		}
 	}
 	// 判断请求的用户是否是文档的拥有者
-	if request.UserID != document.UploaderID {
+	if userClaims.UserID != document.UploaderID {
 		response.Fail(c, http.StatusForbidden, nil, constant.NotAllowWithdrawOthers)
 		return
 	}
@@ -43,7 +54,7 @@ func WithdrawUpload(c *gin.Context) {
 	}
 	document.Status = constant.DocumentStatusWithdraw
 	// 查找对应分类
-	category, err := dao.GetCategoryByID(document.CategoryID)
+	_, err = dao.GetCategoryByID(document.CategoryID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			response.Fail(c, http.StatusNotFound, nil, constant.CategoryNotExist)
@@ -59,18 +70,7 @@ func WithdrawUpload(c *gin.Context) {
 		return
 	}
 
-	responseData := gin.H{
-		"name":        document.Name,
-		"document_id": document.ID,
-		"type":        document.Type,
-		"uploadTime":  document.CreatedAt,
-		"status":      document.Status,
-		"category":    category.Name,
-		"collections": document.Collections,
-		"readCounts":  document.ReadCounts,
-		"URL":         utils.GetFileURL(document.URL),
-	}
-	response.Success(c, responseData, constant.WithdrawUploadSuccessMsg)
+	response.Success(c, nil, constant.WithdrawUploadSuccessMsg)
 
 }
 
@@ -90,8 +90,20 @@ func GetUserUploadDocument(c *gin.Context) {
 		return
 	}
 
+	claims, exists := c.Get(constant.UserClaims)
+	if !exists {
+		response.Fail(c, http.StatusUnauthorized, nil, constant.GetUserInfoFailed)
+		return
+	}
+	userClaims := claims.(*utils.MyClaims)
+
+	if userClaims.UserID != userID {
+		response.Fail(c, http.StatusUnauthorized, nil, constant.NonSelf)
+		return
+	}
+
 	// 验证用户是否存在
-	_, err = dao.GetUserByID(userID)
+	_, err = dao.GetUserByID(userClaims.UserID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			response.Fail(c, http.StatusNotFound, nil, constant.UserNotExist)
@@ -102,41 +114,23 @@ func GetUserUploadDocument(c *gin.Context) {
 	}
 
 	// 查找用户上传的所有文档
-	documents, err := dao.GetDocumentsByUploaderID(userID)
+	documents, err := dao.GetDocumentsByUploaderID(userClaims.UserID)
 	if err != nil {
 		response.Fail(c, http.StatusInternalServerError, nil, constant.DatabaseError)
 		return
 	}
 
 	// 构造返回数据数组
-	var responseData []gin.H
+	var responseData []response.InfoBriefResponse
 	for _, doc := range documents {
-		// 获取文档分类信息
-		category, err := dao.GetCategoryByID(doc.CategoryID)
+		// 使用BuildInfoBriefResponse构建文档信息
+		infoBrief, err := response.BuildInfoBriefResponse(doc)
 		if err != nil {
-			continue // 跳过无法获取分类的文档
+			continue // 跳过构建失败的文档
 		}
-
-		var fileURL string
-		if doc.Type == constant.VideoType {
-			fileURL = doc.URL // 视频类型直接返回URL
-		} else {
-			fileURL = utils.GetFileURL(doc.URL) // 其他类型需要从COS获取完整URL
-		}
-
-		responseData = append(responseData, gin.H{
-			"name":        doc.Name,
-			"document_id": doc.ID,
-			"type":        doc.Type,
-			"uploadTime":  doc.CreatedAt.Format("2006-01-02 15:04:05"),
-			"status":      doc.Status,
-			"category":    category.Name,
-			"collections": doc.Collections,
-			"readCounts":  doc.ReadCounts,
-			"URL":         fileURL,
-		})
+		responseData = append(responseData, infoBrief)
 	}
 
 	// 返回用户上传的文档列表
-	response.SuccessWithArray(c, responseData, constant.GetUserUploadSuccessMsg)
+	response.SuccessWithData(c, responseData, constant.GetUserUploadSuccessMsg)
 }
