@@ -3,6 +3,7 @@ package controllers
 import (
 	"errors"
 	"net/http"
+	"strconv"
 
 	"github.com/antidote-kt/SSE_Library-back/config"
 	"github.com/antidote-kt/SSE_Library-back/constant"
@@ -15,20 +16,26 @@ import (
 	"gorm.io/gorm"
 )
 
+// ModifyDocument 文档修改接口
 func ModifyDocument(c *gin.Context) {
 	var request dto.ModifyDocumentDTO
+	// 声明分类模型用于后续获取分类信息
 	var category models.Category
-	//记录旧状态
+	// 记录旧状态，用于判断是否需要删除原始文件
 	var oldType string
+	// 获取数据库连接实例
 	db := config.GetDB()
+
+	// 解析并验证请求参数
 	if err := c.ShouldBind(&request); err != nil {
 		response.Fail(c, http.StatusBadRequest, nil, constant.ParamParseError)
 		return
 	}
 
-	// 查找要修改的文档
+	// 根据文档ID查找要修改的文档
 	document, err := dao.GetDocumentByID(request.DocumentID)
 	if err != nil {
+		// 如果文档不存在，返回错误信息
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			response.Fail(c, http.StatusNotFound, nil, constant.DocumentNotExist)
 			return
@@ -36,13 +43,15 @@ func ModifyDocument(c *gin.Context) {
 		response.Fail(c, http.StatusInternalServerError, nil, constant.DatabaseError)
 		return
 	}
+	// 记录修改前的文档类型，用于后续文件处理判断
 	oldType = document.Type
 
-	// 更新文档字段（如果提供了相应字段）
+	// 动态更新文档字段（仅更新客户端提供的字段）
 	if request.Author != nil {
 		document.Author = *request.Author
 	}
 	if request.CategoryID != nil {
+		// 验证分类ID是否存在
 		category, err = dao.GetCategoryByID(*request.CategoryID)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -69,6 +78,8 @@ func ModifyDocument(c *gin.Context) {
 	if request.Introduction != nil {
 		document.Introduction = *request.Introduction
 	}
+
+	// 处理封面图片更新
 	if request.Cover != nil {
 		// 先删除旧封面，如果document.cover为空串则不做任何操作
 		err := utils.DeleteFile(document.Cover)
@@ -76,22 +87,27 @@ func ModifyDocument(c *gin.Context) {
 			response.Fail(c, http.StatusInternalServerError, nil, constant.OldCoverDeleteFailed)
 			return
 		}
-		//上传新封面
+		// 上传新封面图片到指定分类目录
 		document.Cover, err = utils.UploadCoverImage(request.Cover, category.Name)
 		if err != nil {
 			response.Fail(c, http.StatusInternalServerError, nil, constant.CoverUploadFailed)
 			return
 		}
 	}
+
+	// 处理文档文件或视频链接更新
 	if request.File != nil || request.VideoURL != nil {
 		// 只有原来的类型不是video才删除，如果原来是video，cos没有相应的资源
 		if oldType != constant.VideoType {
+			// 删除旧文件
 			err := utils.DeleteFile(document.URL)
 			if err != nil {
 				response.Fail(c, http.StatusInternalServerError, nil, constant.OldFileDeleteFailed)
 				return
 			}
 		}
+
+		// 更新文档URL：如果是视频URL则直接赋值，否则上传新文件
 		if request.VideoURL != nil {
 			document.URL = *request.VideoURL
 		} else if request.File != nil {
@@ -101,34 +117,41 @@ func ModifyDocument(c *gin.Context) {
 				return
 			}
 		}
-		// 重新上传文件需要重新审核
+		// 重新上传文件后需要重新审核
 		document.Status = constant.DocumentStatusAudit
 	}
 
+	// 使用事务确保数据一致性：更新文档信息和标签映射
 	err = db.Transaction(func(tx *gorm.DB) error {
+		// 在事务中更新文档信息
 		if err := dao.UpdateDocumentWithTx(tx, document); err != nil {
 			return err
 		}
+
+		// 如果请求中包含标签信息，则更新标签映射关系
 		if len(request.Tags) > 0 {
-			// 删除原有的标签映射
+			// 删除原有的标签映射关系
 			if err := dao.DeleteDocumentTagByDocumentIDWithTx(tx, document.ID); err != nil {
 				return errors.New(constant.OldTagDeleteFailed)
 			}
-			// 创建新标签映射
+			// 创建新的标签映射关系
 			if err := dao.CreateDocumentTagWithTx(tx, document.ID, request.Tags); err != nil {
 				return err
 			}
-
 		}
 		return nil
 	})
+
 	// 检查事务执行结果
 	if err != nil {
 		response.Fail(c, http.StatusInternalServerError, nil, err.Error())
 		return
 	}
+
+	// 验证上传者是否存在
 	_, err = dao.GetUserByID(document.UploaderID)
 	if err != nil {
+		// 如果上传者不存在，返回错误信息
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			response.Fail(c, http.StatusNotFound, nil, constant.UploaderNotExist)
 			return
@@ -137,5 +160,103 @@ func ModifyDocument(c *gin.Context) {
 		return
 	}
 
+	// 返回成功响应
 	response.Success(c, nil, constant.DocumentUpdateSuccess)
+}
+
+// GetDocumentByID 文档详情获取接口
+func GetDocumentByID(c *gin.Context) {
+	// 从URL参数中获取文档ID字符串
+	documentIDStr := c.Param("id")
+	// 将字符串格式的文档ID转换为uint64类型
+	documentID, err := strconv.ParseUint(documentIDStr, 10, 64)
+	if err != nil {
+		// 如果转换失败，返回参数解析错误
+		response.Fail(c, http.StatusInternalServerError, nil, constant.ParamParseError)
+		return
+	}
+
+	// 通过DAO层根据文档ID查询文档信息
+	document, err := dao.GetDocumentByID(documentID)
+	if err != nil {
+		// 如果文档不存在，返回404错误
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			response.Fail(c, http.StatusNotFound, nil, constant.DocumentNotExist)
+			return
+		}
+		// 其他数据库错误，返回500错误
+		response.Fail(c, http.StatusInternalServerError, nil, constant.DatabaseError)
+		return
+	}
+	//更新阅读量
+	document.ReadCounts++
+	if err := dao.UpdateDocument(document); err != nil {
+		response.Fail(c, http.StatusInternalServerError, nil, constant.DocumentUpdateFail)
+	}
+
+	// 构建文档详情响应数据结构
+	docDetailResponse, err := response.BuildDocumentDetailResponse(document)
+	if err != nil {
+		// 如果构建响应数据失败，返回数据库错误
+		response.Fail(c, http.StatusInternalServerError, nil, constant.DatabaseError)
+		return
+	}
+
+	// 返回成功响应，携带文档详情数据
+	response.SuccessWithData(c, docDetailResponse, constant.DocumentObtain)
+}
+
+// SearchDocument 文档搜索接口
+// 根据多种参数（如关键词、分类ID、作者等）搜索文档
+// 支持多种搜索条件的组合查询
+func SearchDocument(c *gin.Context) {
+	// 声明搜索请求参数结构体
+	var request dto.SearchDocumentDTO
+
+	// 解析并验证请求参数
+	if err := c.ShouldBind(&request); err != nil {
+		// 如果参数解析失败，返回400错误
+		response.Fail(c, http.StatusBadRequest, nil, constant.ParamParseError)
+		return
+	}
+
+	// 如果请求中包含分类ID参数，验证分类是否存在
+	if request.CategoryID != nil {
+		_, err := dao.GetCategoryByID(*request.CategoryID)
+		if err != nil {
+			// 如果分类不存在，返回404错误
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				response.Fail(c, http.StatusNotFound, nil, constant.CategoryNotExist)
+				return
+			}
+			// 其他数据库错误，返回500错误
+			response.Fail(c, http.StatusInternalServerError, nil, constant.DatabaseError)
+			return
+		}
+	}
+
+	// 通过DAO层根据请求参数进行文档搜索
+	documents, err := dao.SearchDocumentsByParams(request)
+	if err != nil {
+		// 如果搜索过程中发生错误，返回500错误
+		response.Fail(c, http.StatusInternalServerError, nil, constant.DatabaseError)
+		return
+	}
+
+	// 构建搜索结果响应数据列表
+	var results []response.DocumentDetailResponse
+	// 遍历搜索到的文档列表，为每个文档构建详细响应信息
+	for _, document := range documents {
+		docDetailResponse, err := response.BuildDocumentDetailResponse(document)
+		if err != nil {
+			// 如果构建响应数据失败，返回500错误
+			response.Fail(c, http.StatusInternalServerError, nil, constant.DatabaseError)
+			return
+		}
+		// 将构建好的文档详情响应添加到结果列表中
+		results = append(results, docDetailResponse)
+	}
+
+	// 返回成功响应，携带搜索结果列表
+	response.SuccessWithData(c, results, constant.DocumentObtain)
 }

@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/antidote-kt/SSE_Library-back/config"
+	"github.com/antidote-kt/SSE_Library-back/constant"
 	"github.com/antidote-kt/SSE_Library-back/models"
 	"gorm.io/gorm"
 )
@@ -18,7 +19,7 @@ func CheckFavoriteExist(userID, documentID uint64) (bool, error) {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return false, nil
 		}
-		return false, errors.New("数据库查询失败")
+		return false, errors.New(constant.DatabaseError)
 	}
 
 	return true, nil
@@ -32,7 +33,7 @@ func GetFavoriteDocumentsByUserID(userID uint64) ([]models.Document, error) {
 	// 获取用户的收藏记录
 	err := db.Where("user_id = ?", userID).Find(&favorites).Error
 	if err != nil {
-		return nil, errors.New("查询收藏记录失败")
+		return nil, errors.New(constant.FavoriteGetFailed)
 	}
 
 	var documents []models.Document

@@ -5,6 +5,8 @@ import (
 	"fmt"
 
 	"github.com/antidote-kt/SSE_Library-back/config"
+	"github.com/antidote-kt/SSE_Library-back/constant"
+	"github.com/antidote-kt/SSE_Library-back/dto"
 	"github.com/antidote-kt/SSE_Library-back/models"
 	"gorm.io/gorm"
 )
@@ -41,18 +43,18 @@ func CreateDocumentWithTx(tx *gorm.DB, document models.Document, tagNames []stri
 					TagName: tagName,
 				}
 				if err := tx.Create(&tag).Error; err != nil {
-					return models.Document{}, fmt.Errorf("创建标签失败: %s, 错误: %v", tagName, err)
+					return models.Document{}, fmt.Errorf("%v: %s", constant.TagCreateFailed, tagName)
 				}
 			} else {
 				// 其他数据库错误
-				return models.Document{}, fmt.Errorf("查询标签失败: %s, 错误: %v", tagName, err)
+				return models.Document{}, fmt.Errorf("%vv: %s", constant.TagGetFailed, tagName)
 			}
 		}
 		tags = append(tags, tag)
 	}
 	// 创建文档
 	if err := tx.Create(&document).Error; err != nil {
-		return models.Document{}, fmt.Errorf("创建文档失败: %v", err)
+		return models.Document{}, fmt.Errorf(constant.DocumentCreateFail)
 	}
 
 	// 创建文档与标签的关联
@@ -63,7 +65,7 @@ func CreateDocumentWithTx(tx *gorm.DB, document models.Document, tagNames []stri
 			TagID:      tag.ID,
 		}
 		if err := tx.Create(&docTag).Error; err != nil {
-			return models.Document{}, fmt.Errorf("创建文档标签关联失败: %v", err)
+			return models.Document{}, fmt.Errorf(constant.DocumentTagCreateFailed)
 		}
 	}
 	return document, nil
@@ -72,7 +74,7 @@ func CreateDocumentWithTx(tx *gorm.DB, document models.Document, tagNames []stri
 
 func UpdateDocumentWithTx(tx *gorm.DB, document models.Document) error {
 	if document.ID == 0 {
-		return errors.New("文档ID不能为空")
+		return errors.New(constant.DocumentIDLack)
 	}
 	return tx.Save(&document).Error
 }
@@ -80,18 +82,103 @@ func UpdateDocumentWithTx(tx *gorm.DB, document models.Document) error {
 func UpdateDocument(document models.Document) error {
 	db := config.GetDB()
 	if document.ID == 0 {
-		return errors.New("文档ID不能为空")
+		return errors.New(constant.DocumentIDLack)
 	}
 	return db.Save(&document).Error
 }
 
 func DeleteDocumentWithTx(tx *gorm.DB, document models.Document) error {
 	if document.ID == 0 {
-		return errors.New("文档ID不能为空")
+		return errors.New(constant.DocumentIDLack)
 	}
 	err := tx.Select("Tags").Delete(&document).Error
 	if err != nil {
-		return errors.New("文档删除失败")
+		return errors.New(constant.DocumentDeletedFailed)
 	}
 	return nil
+}
+
+func GetDocumentByCondition(condition string) ([]models.Document, error) {
+	db := config.GetDB()
+	var documents []models.Document
+
+	query := db.Model(&models.Document{})
+
+	if condition != "" {
+		// Search across multiple fields: Name, Author, BookISBN, Introduction
+		query = query.Where("name LIKE ? OR author LIKE ? OR book_isbn LIKE ? OR introduction LIKE ?",
+			"%"+condition+"%", "%"+condition+"%", "%"+condition+"%", "%"+condition+"%")
+	}
+
+	err := query.Find(&documents).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return documents, nil
+}
+
+// SearchDocumentsByParams 根据参数搜索文档，先用key搜索，再进行其他参数过滤
+func SearchDocumentsByParams(request dto.SearchDocumentDTO) ([]models.Document, error) {
+	db := config.GetDB()
+	query := db.Model(&models.Document{})
+	// 首先根据key搜索 - 如果TypeOfKey参数传了，则只搜索指定字段，否则搜索全部字段（包括标签）
+	if request.Key != nil && *request.Key != "" {
+		key := *request.Key
+		if request.TypeOfKey != nil {
+			// 根据TypeOfKey参数确定搜索字段
+			switch *request.TypeOfKey {
+			case constant.TypeOfKeyName:
+				query = query.Where("name LIKE ?", "%"+key+"%")
+			case constant.TypeOfKeyAuthor:
+				query = query.Where("author LIKE ?", "%"+key+"%")
+			case constant.TypeOfKeyBookISBN:
+				query = query.Where("book_isbn LIKE ?", "%"+key+"%")
+			case constant.TypeOfKeyIntroduction:
+				query = query.Where("introduction LIKE ?", "%"+key+"%")
+			case constant.TypeOfKeyTag:
+				// 需要JOIN标签表来搜索标签
+				query = query.Joins("LEFT JOIN document_tag ON documents.id = document_tag.document_id").
+					Joins("LEFT JOIN tags ON document_tag.tag_id = tags.id").
+					Where("tags.tag_name LIKE ?", "%"+key+"%").
+					Group("documents.id") // 避免因为JOIN导致的重复记录
+			default:
+				// 如果TypeOfKey不是预设值，默认搜索全部字段（包括标签）
+				query = query.Joins("LEFT JOIN document_tag ON documents.id = document_tag.document_id").
+					Joins("LEFT JOIN tags ON document_tag.tag_id = tags.id").
+					Where("documents.name LIKE ? OR documents.author LIKE ? OR documents.book_isbn LIKE ? OR documents.introduction LIKE ? OR tags.tag_name LIKE ?",
+								"%"+key+"%", "%"+key+"%", "%"+key+"%", "%"+key+"%", "%"+key+"%").
+					Group("documents.id") // 避免因为JOIN导致的重复记录
+			}
+		} else {
+			// 如果没有TypeOfKey参数，按原来的方式搜索全部字段（包括标签）
+			query = query.Joins("LEFT JOIN document_tag ON documents.id = document_tag.document_id").
+				Joins("LEFT JOIN tags ON document_tag.tag_id = tags.id").
+				Where("documents.name LIKE ? OR documents.author LIKE ? OR documents.book_isbn LIKE ? OR documents.introduction LIKE ? OR tags.tag_name LIKE ?",
+							"%"+key+"%", "%"+key+"%", "%"+key+"%", "%"+key+"%", "%"+key+"%").
+				Group("documents.id") // 避免因为JOIN导致的重复记录
+		}
+	}
+
+	// 根据其他参数进行过滤
+	if request.CategoryID != nil {
+		query = query.Where("category_id = ?", *request.CategoryID)
+	}
+
+	if request.Type != nil && *request.Type != "" {
+		query = query.Where("type = ?", *request.Type)
+	}
+
+	if request.Year != nil && *request.Year != "" {
+		query = query.Where("create_year = ?", *request.Year)
+	}
+
+	// 执行查询
+	var documents []models.Document
+	err := query.Find(&documents).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return documents, nil
 }

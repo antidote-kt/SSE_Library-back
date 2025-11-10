@@ -14,7 +14,7 @@ func Success(ctx *gin.Context, data gin.H, msg string) {
 	Response(ctx, http.StatusOK, http.StatusOK, msg, data)
 }
 
-func SuccessWithArray(ctx *gin.Context, data interface{}, msg string) {
+func SuccessWithData(ctx *gin.Context, data interface{}, msg string) {
 	// 直接返回包含数组的完整响应格式
 	ctx.JSON(http.StatusOK, gin.H{
 		"code":    http.StatusOK,

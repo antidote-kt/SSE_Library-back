@@ -27,7 +27,7 @@ type UploadDTO struct {
 	UploadTime *string `form:"uploadTime,omitempty"`
 }
 type WithdrawUploadDTO struct {
-	DocumentID uint64 `form:"document_id" binding:"required"`
+	DocumentID uint64 `form:"documentId" binding:"required"`
 	UserID     uint64 `form:"userId" binding:"required"`
 }
 
@@ -46,14 +46,26 @@ type ModifyDocumentDTO struct {
 	Type         *string  `form:"type,omitempty"`
 	Introduction *string  `form:"introduction,omitempty"`
 }
+type SearchDocumentDTO struct {
+	// 筛选科目
+	CategoryID *uint64 `form:"categoryId,omitempty"`
+	// 搜索关键词
+	Key *string `form:"key,omitempty"`
+	// 关键词的类型
+	TypeOfKey *string `form:"typeOfKey,omitempty"`
+	// 筛选文件类型
+	Type *string `form:"type,omitempty"`
+	// 筛选创作时间s
+	Year *string `form:"year,omitempty"`
+}
 type AdminModifyDocumentStatusRequest struct {
-	DocumentID uint64  `form:"document_id"`
+	DocumentID uint64  `form:"documentId"`
 	Name       *string `form:"name,omitempty"`
 	Status     *string `form:"status"`
 }
 type DocumentBriefDTO struct {
 	Name        string `json:"name"`
-	DocumentID  uint64 `json:"document_id"`
+	DocumentID  uint64 `json:"documentId"`
 	Type        string `json:"type"`
 	UploadTime  string `json:"uploadTime"`
 	Status      string `json:"status"`

@@ -12,6 +12,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/antidote-kt/SSE_Library-back/constant"
+	"github.com/antidote-kt/SSE_Library-back/models"
 	"github.com/spf13/viper"
 	"github.com/tencentyun/cos-go-sdk-v5"
 )
@@ -71,6 +73,13 @@ func GetFileURL(filename string) string {
 	client, _ := getCOSClient()
 	oUrl := client.Object.GetObjectURL(filename)
 	return oUrl.String()
+}
+func GetResponseFileURL(document models.Document) string {
+	if document.Type == constant.VideoType {
+		return document.URL
+	} else {
+		return GetFileURL(document.URL)
+	}
 }
 
 // 上传主文件

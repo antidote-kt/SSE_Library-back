@@ -1,0 +1,36 @@
+app:
+  name: SSE_Library-back
+  port: :8080
+
+datasource:
+  database: sse_library
+  host: localhost
+  port: 3306
+  username:
+  password:
+  charset: utf8mb4
+
+bucket:
+  bucketName:
+  appID:
+  region:
+  domain:
+  secretID:
+  secretKey:
+
+jwt:
+  secret:
+
+# Redis配置
+redis:
+  addr: localhost:6379 # Redis 服务器地址
+  password:
+  db: 0
+
+# Email配置 (发件邮箱)
+email:
+  smtp_host: smtp.qq.com
+  smtp_port: 587
+  username:
+  password:  # 注意：这里通常不是邮箱登录密码，而是SMTP授权码
+  from_address:
