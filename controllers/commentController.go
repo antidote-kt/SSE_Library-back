@@ -14,42 +14,91 @@ import (
 	"gorm.io/gorm"
 )
 
-func buildCommentResponse(commentData dao.CommentWithDetails) dto.CommentResponseDTO {
+func formatTimeForResponse(t time.Time) string {
+	if t.IsZero() {
+		return ""
+	}
+	return t.Format("2006-01-02 15:04:05")
+}
+
+func loadCategoryNames(comments []models.Comment) (map[uint64]string, error) {
+	categoryIDSet := make(map[uint64]struct{})
+	for _, comment := range comments {
+		if comment.Document != nil && comment.Document.CategoryID != 0 {
+			categoryIDSet[comment.Document.CategoryID] = struct{}{}
+		}
+	}
+
+	if len(categoryIDSet) == 0 {
+		return map[uint64]string{}, nil
+	}
+
+	ids := make([]uint64, 0, len(categoryIDSet))
+	for id := range categoryIDSet {
+		ids = append(ids, id)
+	}
+
+	categories, err := dao.GetCategoriesByIDs(ids)
+	if err != nil {
+		return nil, err
+	}
+
+	categoryNames := make(map[uint64]string, len(categories))
+	for _, category := range categories {
+		categoryNames[category.ID] = category.Name
+	}
+
+	return categoryNames, nil
+}
+
+func buildCommentResponse(comment models.Comment, categoryNames map[uint64]string) dto.CommentResponseDTO {
+	commenter := dto.UserBriefDTO{
+		UserID: comment.UserID,
+	}
+	if comment.User != nil {
+		commenter.Username = comment.User.Username
+		commenter.UserAvatar = comment.User.Avatar
+		commenter.Status = comment.User.Status
+		commenter.CreateTime = formatTimeForResponse(comment.User.CreatedAt)
+		commenter.Email = comment.User.Email
+		commenter.Role = comment.User.Role
+	}
+
+	document := dto.DocumentBriefDTO{
+		DocumentID: comment.DocumentID,
+	}
+	if comment.Document != nil {
+		document.Name = comment.Document.Name
+		document.Type = comment.Document.Type
+		document.UploadTime = formatTimeForResponse(comment.Document.CreatedAt)
+		document.Status = comment.Document.Status
+		document.Collections = comment.Document.Collections
+		document.ReadCounts = comment.Document.ReadCounts
+		document.URL = comment.Document.URL
+		document.Content = comment.Document.Introduction
+		document.CreateTime = formatTimeForResponse(comment.Document.CreatedAt)
+		if comment.Document.CategoryID != 0 {
+			if categoryName, ok := categoryNames[comment.Document.CategoryID]; ok {
+				document.Category = categoryName
+				document.Course = categoryName
+			}
+		}
+	}
+
 	return dto.CommentResponseDTO{
-		CommentID: uint64(commentData.CommentID),
-		ParentID:  commentData.ParentID,
-		Commenter: dto.UserBriefDTO{
-			UserID:     uint64(commentData.UserID),
-			Username:   commentData.Username,
-			UserAvatar: commentData.UserAvatar,
-			Status:     commentData.Status,
-			CreateTime: commentData.UserCreateTime.Format("2006-01-02 15:04:05"),
-			Email:      commentData.Email,
-			Role:       commentData.Role,
-		},
-		Document: dto.DocumentBriefDTO{
-			Name:        commentData.DocumentName,
-			DocumentID:  uint64(commentData.DocumentID),
-			Type:        commentData.Type,
-			UploadTime:  commentData.DocumentUploadTime.Format("2006-01-02 15:04:05"),
-			Status:      commentData.DocumentStatus,
-			Category:    commentData.Category,
-			Course:      commentData.Course,
-			Collections: int(commentData.Collections),
-			ReadCounts:  int(commentData.ReadCounts),
-			URL:         commentData.URL,
-			Content:     commentData.DocumentContent,
-			CreateTime:  commentData.DocumentCreateTime.Format("2006-01-02 15:04:05"),
-		},
-		CreatedAt: commentData.CreatedAt.Format("2006-01-02 15:04:05"),
-		Content:   commentData.CommentContent,
+		CommentID: comment.ID,
+		ParentID:  comment.ParentID,
+		Commenter: commenter,
+		Document:  document,
+		CreatedAt: formatTimeForResponse(comment.CreatedAt),
+		Content:   comment.Content,
 	}
 }
 
-func buildCommentResponseList(comments []dao.CommentWithDetails) []dto.CommentResponseDTO {
+func buildCommentResponseList(comments []models.Comment, categoryNames map[uint64]string) []dto.CommentResponseDTO {
 	var commentList []dto.CommentResponseDTO
 	for _, commentData := range comments {
-		commentList = append(commentList, buildCommentResponse(commentData))
+		commentList = append(commentList, buildCommentResponse(commentData, categoryNames))
 	}
 	return commentList
 }
@@ -149,7 +198,7 @@ func PostComment(c *gin.Context) {
 
 	// 创建评论
 	comment := &models.Comment{
-		UserID:     request.Author.UserID,
+		UserID:     uint64(request.Author.UserID),
 		Content:    request.Content,
 		DocumentID: documentID,
 		ParentID:   request.ParentID,
@@ -169,13 +218,15 @@ func PostComment(c *gin.Context) {
 		return
 	}
 
-	responseData := gin.H{
-		"code":    constant.CodeSuccess,
-		"message": constant.MsgCommentPostSuccess,
-		"data":    buildCommentResponseList(comments),
+	categoryNames, err := loadCategoryNames(comments)
+	if err != nil {
+		response.Fail(c, constant.StatusInternalServerError, nil, constant.MsgDatabaseQueryFailed)
+		return
 	}
 
-	c.JSON(constant.StatusCreated, responseData)
+	response.Response(c, constant.StatusCreated, constant.CodeSuccess, constant.MsgCommentPostSuccess, gin.H{
+		"list": buildCommentResponseList(comments, categoryNames),
+	})
 }
 
 // GET /api/books/{document_id}/comments
@@ -203,13 +254,15 @@ func GetComments(c *gin.Context) {
 		return
 	}
 
-	responseData := gin.H{
-		"code":    constant.CodeSuccess,
-		"message": constant.MsgGetCommentListSuccess,
-		"data":    buildCommentResponseList(comments),
+	categoryNames, err := loadCategoryNames(comments)
+	if err != nil {
+		response.Fail(c, constant.StatusInternalServerError, nil, constant.MsgDatabaseQueryFailed)
+		return
 	}
 
-	c.JSON(constant.StatusOK, responseData)
+	response.Response(c, constant.StatusOK, constant.CodeSuccess, constant.MsgGetCommentListSuccess, gin.H{
+		"list": buildCommentResponseList(comments, categoryNames),
+	})
 }
 
 // GET /api/admin/comments
@@ -220,13 +273,15 @@ func GetAllComments(c *gin.Context) {
 		return
 	}
 
-	responseData := gin.H{
-		"code":    constant.CodeSuccess,
-		"message": constant.MsgGetAllCommentsSuccess,
-		"data":    buildCommentResponseList(comments),
+	categoryNames, err := loadCategoryNames(comments)
+	if err != nil {
+		response.Fail(c, constant.StatusInternalServerError, nil, constant.MsgDatabaseQueryFailed)
+		return
 	}
 
-	c.JSON(constant.StatusOK, responseData)
+	response.Response(c, constant.StatusOK, constant.CodeSuccess, constant.MsgGetAllCommentsSuccess, gin.H{
+		"list": buildCommentResponseList(comments, categoryNames),
+	})
 }
 
 // DELETE /api/admin/comment
@@ -259,12 +314,7 @@ func DeleteComment(c *gin.Context) {
 		return
 	}
 
-	responseData := gin.H{
-		"code":    constant.CodeSuccess,
-		"message": constant.MsgCommentDeleteSuccess,
-	}
-
-	c.JSON(constant.StatusOK, responseData)
+	response.Response(c, constant.StatusOK, constant.CodeSuccess, constant.MsgCommentDeleteSuccess, gin.H{})
 }
 
 // GET /users/{user_id}/comments
@@ -292,13 +342,15 @@ func GetUserComments(c *gin.Context) {
 		return
 	}
 
-	responseData := gin.H{
-		"code":    constant.CodeSuccess,
-		"message": constant.MsgGetUserCommentsSuccess,
-		"data":    buildCommentResponseList(comments),
+	categoryNames, err := loadCategoryNames(comments)
+	if err != nil {
+		response.Fail(c, constant.StatusInternalServerError, nil, constant.MsgDatabaseQueryFailed)
+		return
 	}
 
-	c.JSON(constant.StatusOK, responseData)
+	response.Response(c, constant.StatusOK, constant.CodeSuccess, constant.MsgGetUserCommentsSuccess, gin.H{
+		"list": buildCommentResponseList(comments, categoryNames),
+	})
 }
 
 // DELETE /user/deleteComment
@@ -347,7 +399,7 @@ func DeleteUserComment(c *gin.Context) {
 		return
 	}
 
-	if uint64(deletedCommentInfo.UserID) != userID {
+	if deletedCommentInfo.UserID != userID {
 		response.Fail(c, constant.StatusNotFound, nil, constant.MsgCommentNotFoundOrNoAccess)
 		return
 	}
@@ -365,11 +417,13 @@ func DeleteUserComment(c *gin.Context) {
 		return
 	}
 
-	responseData := gin.H{
-		"code":    constant.CodeSuccess,
-		"message": constant.MsgCommentDeleteSuccess,
-		"data":    buildCommentResponseList(remainingComments),
+	categoryNames, err := loadCategoryNames(remainingComments)
+	if err != nil {
+		response.Fail(c, constant.StatusInternalServerError, nil, constant.MsgDatabaseQueryFailed)
+		return
 	}
 
-	c.JSON(constant.StatusOK, responseData)
+	response.Response(c, constant.StatusOK, constant.CodeSuccess, constant.MsgCommentDeleteSuccess, gin.H{
+		"list": buildCommentResponseList(remainingComments, categoryNames),
+	})
 }
