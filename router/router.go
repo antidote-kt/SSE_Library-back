@@ -13,8 +13,10 @@ func SetupRouter() *gin.Engine {
 
 	api.POST("/login", controllers.Login)
 	api.POST("/register", controllers.RegisterUser)
-	api.POST("/VCode", controllers.SendVerificationCode) // 请求验证码（临时生成，采用POST）
-	api.PUT("/Password", controllers.ChangePassword)     //修改密码
+	api.POST("/VCode", controllers.SendVerificationCode)          // 请求验证码（临时生成，采用POST）
+	api.PUT("/Password", controllers.ChangePassword)              //修改密码
+	api.GET("/category", controllers.GetCategoriesAndCourses)     // 获取分类和课程
+	api.GET("/searchcat", controllers.SearchCategoriesAndCourses) // 搜索分类和课程
 
 	// --- 需要认证才能访问的路由 ---
 	authed := api.Group("/")
@@ -39,6 +41,7 @@ func SetupRouter() *gin.Engine {
 			userApi.POST("/:document_id/comments", controllers.PostComment) // 发表评论
 			userApi.GET("/:user_id/comments", controllers.GetUserComments)  // 用户查看自己的评论
 			userApi.DELETE("/comment", controllers.DeleteUserComment)       // 用户删除自己的评论（需要认证）
+			userApi.GET("/hotCategories", controllers.GetHotCategories)     // 获取热门分类
 		}
 
 		// 管理员相关操作
