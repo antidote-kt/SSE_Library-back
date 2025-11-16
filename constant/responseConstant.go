@@ -50,6 +50,7 @@ const (
 	DocumentTagCreateFailed     = "创建文档标签关联失败"
 	DocumentTagGetFailed        = "文档标签关联查询失败"
 	DocumentIDLack              = "文档ID不能为空"
+	DocumentNotOpen             = "文档状态不是公开的，无法收藏"
 )
 
 // Tag相关常量
@@ -109,4 +110,14 @@ const (
 	MsgGetCommentListSuccess  = "获取评论列表成功"
 	MsgGetAllCommentsSuccess  = "获取所有评论成功"
 	MsgGetUserCommentsSuccess = "获取用户评论成功"
+)
+
+// 聊天相关常量
+const (
+	GetSenderFailed       = "获取发送者信息失败"
+	SessionIDLack         = "sessionId参数不能为空"
+	SessionIDFormatError  = "sessionId参数格式错误"
+	GetChatMessageSuccess = "获取聊天记录成功"
+	SearchKeyLack         = "searchKey参数不能为空"
+	UserNotInSession      = "用户不是会话的参与者"
 )

@@ -71,6 +71,12 @@ func CollectDocument(c *gin.Context) {
 		return
 	}
 
+	// 检查文档状态是否为open，如果不是open状态则不能收藏
+	if document.Status != constant.DocumentStatusOpen {
+		response.Fail(c, http.StatusBadRequest, nil, constant.DocumentNotOpen)
+		return
+	}
+
 	// 检查该用户是否已经收藏了该文档（防止重复收藏）
 	exists, err = dao.CheckFavoriteExist(userClaims.UserID, request.DocumentID)
 	if err != nil {

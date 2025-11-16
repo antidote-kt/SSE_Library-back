@@ -29,6 +29,8 @@ func SetupRouter() *gin.Engine {
 		authed.GET("/document/:id", controllers.GetDocumentByID)      // 获取文档详情
 		authed.GET("/searchdoc", controllers.SearchDocument)          //搜索文档
 		authed.PUT("/document", controllers.ModifyDocument)           // 文件信息修改（上传该文件的用户才能修改）
+		authed.GET("/chat/messages", controllers.GetChatMessages)     //获取聊天记录
+		authed.GET("/chat/search", controllers.SearchChatMessages)    //搜索聊天记录
 
 		// 用户相关操作
 		userApi := authed.Group("/user")
