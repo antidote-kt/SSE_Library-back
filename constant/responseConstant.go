@@ -61,7 +61,12 @@ const (
 
 // 分类相关常量
 const (
-	CategoryNotExist = "分类不存在"
+	CategoryNotExist           = "分类不存在"
+	MsgGetCategoriesSuccess    = "获取分类和课程成功"
+	MsgGetCategoriesListFailed = "获取分类列表失败"
+	MsgCategoryCountFailed     = "统计分类文档失败"
+	MsgCategoryReadCountFailed = "统计分类浏览量失败"
+	MsgGetHotCategoriesSuccess = "获取热门分类成功"
 )
 
 // 用户相关常量
