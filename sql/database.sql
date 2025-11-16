@@ -10,6 +10,13 @@ CREATE TABLE users (
    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '用户信息最后修改时间',
    deleted_at TIMESTAMP NULL DEFAULT NULL COMMENT '软删除标记，（NULL表示未删除）'
 ) COMMENT='用户基础信息表';
+-- 用户名唯一约束（仅未删除记录）
+CREATE UNIQUE INDEX idx_users_username_unique
+    ON users (username, (IF(deleted_at IS NULL, 1, NULL)));
+
+-- 邮箱唯一约束（仅未删除记录）
+CREATE UNIQUE INDEX idx_users_email_unique
+    ON users (email, (IF(deleted_at IS NULL, 1, NULL)));
 
 CREATE TABLE favorites (
    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '收藏记录ID',
@@ -22,6 +29,9 @@ CREATE TABLE favorites (
    UNIQUE KEY uk_user_favorite (user_id, document_id),
    KEY idx_document_id (document_id)
 ) COMMENT='文档收藏记录表';
+-- 用户收藏唯一约束（避免重复收藏）
+CREATE UNIQUE INDEX idx_favorites_user_doc_unique
+    ON favorites (user_id, document_id, (IF(deleted_at IS NULL, 1, NULL)));
 
 CREATE TABLE comments (
       id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '评论ID',
@@ -79,6 +89,9 @@ CREATE TABLE tags (
    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
    deleted_at TIMESTAMP NULL DEFAULT NULL COMMENT '软删除标记，（NULL表示未删除）'
 ) COMMENT='文档标签表';
+-- 标签名称唯一约束
+CREATE UNIQUE INDEX idx_tags_name_unique
+    ON tags (tag_name, (IF(deleted_at IS NULL, 1, NULL)));
 
 CREATE TABLE document_tag (
   id BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT COMMENT 'ID',
@@ -88,6 +101,10 @@ CREATE TABLE document_tag (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   deleted_at TIMESTAMP NULL DEFAULT NULL COMMENT '软删除标记，（NULL表示未删除）'
 ) COMMENT='文档与标签关系映射表';
+-- 文档标签关系唯一约束
+CREATE UNIQUE INDEX idx_document_tag_unique
+    ON document_tag (document_id, tag_id, (IF(deleted_at IS NULL, 1, NULL)));
+
 
 CREATE TABLE categories (
     id BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT COMMENT '分类唯一标识ID，一级分类',
@@ -100,4 +117,33 @@ CREATE TABLE categories (
     deleted_at TIMESTAMP NULL DEFAULT NULL COMMENT '软删除标记，（NULL表示未删除）',
     KEY idx_parent_id (parent_id)
 ) COMMENT='分类表';
+-- 分类名称唯一约束（同一父级下）
+CREATE UNIQUE INDEX idx_categories_name_unique
+    ON categories (name, parent_id, (IF(deleted_at IS NULL, 1, NULL)));
+
+
+CREATE TABLE sessions (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '会话ID (对应 sessionId)',
+  user1_id BIGINT UNSIGNED NOT NULL COMMENT '用户1id',
+  user2_id BIGINT UNSIGNED NOT NULL COMMENT '用户2id',
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  deleted_at TIMESTAMP NULL DEFAULT NULL COMMENT '软删除标记，（NULL表示未删除）',
+  PRIMARY KEY (id)
+) COMMENT='聊天会话表';
+-- 用户会话关系唯一约束（避免重复创建相同用户间的会话）
+CREATE UNIQUE INDEX idx_sessions_users_unique
+ON sessions (user1_id, user2_id,(IF(deleted_at IS NULL, 1, NULL)));
+
+CREATE TABLE messages (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '消息唯一ID',
+    session_id BIGINT UNSIGNED NOT NULL COMMENT '所属会话ID (外键, 对应 sessionId)',
+    sender_id  BIGINT UNSIGNED NOT NULL COMMENT '发送者ID',
+    content TEXT NOT NULL COMMENT '消息内容 (对应 content)',
+    status ENUM('sent', 'delivered', 'read') NOT NULL DEFAULT 'sent' COMMENT '消息状态 (对应 status)',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '发送时间',
+    deleted_at TIMESTAMP NULL DEFAULT NULL COMMENT '软删除标记，（NULL表示未删除）',
+    PRIMARY KEY (id),
+    INDEX idx_session_id (session_id) -- 关键索引：快速按会话ID拉取聊天记录，
+    INDEX idx_sender_id (sender_id)
+) COMMENT='聊天消息表';
 
