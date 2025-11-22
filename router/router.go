@@ -58,6 +58,9 @@ func SetupRouter() *gin.Engine {
 			adminApi.DELETE("/comment", controllers.DeleteComment)                  // 管理员删除评论（需要认证）
 
 		}
+		// 分类相关操作（需要认证）
+		authed.PUT("/category", controllers.ModifyCategory)    // 修改分类或课程
+		authed.DELETE("/category", controllers.DeleteCategory) // 删除分类或课程
 	}
 
 	return router

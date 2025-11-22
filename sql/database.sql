@@ -143,7 +143,7 @@ CREATE TABLE messages (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '发送时间',
     deleted_at TIMESTAMP NULL DEFAULT NULL COMMENT '软删除标记，（NULL表示未删除）',
     PRIMARY KEY (id),
-    INDEX idx_session_id (session_id) -- 关键索引：快速按会话ID拉取聊天记录，
+    INDEX idx_session_id (session_id), -- 关键索引：快速按会话ID拉取聊天记录
     INDEX idx_sender_id (sender_id)
 ) COMMENT='聊天消息表';
 
