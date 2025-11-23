@@ -82,3 +82,17 @@ func GetRecentCategories(days int) ([]models.Category, error) {
 	err := db.Where("updated_at >= ? AND deleted_at IS NULL", cutoffTime).Find(&categories).Error
 	return categories, err
 }
+
+// DeleteCategoryByName 根据名称删除分类（软删除）
+func DeleteCategoryByName(name string) error {
+	db := config.GetDB()
+	err := db.Model(&models.Category{}).Where("name = ? AND deleted_at IS NULL", name).Update("deleted_at", time.Now()).Error
+	return err
+}
+
+// UpdateCategory 更新分类信息
+func UpdateCategory(category *models.Category) error {
+	db := config.GetDB()
+	err := db.Save(category).Error
+	return err
+}
