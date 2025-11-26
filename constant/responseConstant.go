@@ -66,17 +66,23 @@ const (
 
 // 分类相关常量
 const (
-	CategoryNotExist           = "分类不存在"
-	ParentCategoryNotExist     = "父分类不存在"
-	CategoryNameAlreadyExist   = "分类名称已存在"
-	MsgGetCategoriesSuccess    = "获取分类和课程成功"
-	MsgGetCategoriesListFailed = "获取分类列表失败"
-	MsgCategoryCountFailed     = "统计分类文档失败"
-	MsgCategoryReadCountFailed = "统计分类浏览量失败"
-	MsgGetHotCategoriesSuccess = "获取热门分类成功"
-	MsgGetHotCategoriesFailed  = "获取热门分类失败"
-	MsgCategoryCreateFailed    = "添加分类失败"
-	MsgCategoryCreateSuccess   = "添加分类成功"
+	CategoryNotExist            = "分类不存在"
+	ParentCategoryNotExist      = "父分类不存在"
+	CategoryNameAlreadyExist    = "分类名称已存在"
+	MsgGetCategoriesSuccess     = "获取分类和课程成功"
+	MsgGetCategoriesListFailed  = "获取分类列表失败"
+	MsgCategoryCountFailed      = "统计分类文档失败"
+	MsgCategoryReadCountFailed  = "统计分类浏览量失败"
+	MsgGetHotCategoriesSuccess  = "获取热门分类成功"
+	MsgGetHotCategoriesFailed   = "获取热门分类失败"
+	MsgCategoryCreateFailed     = "添加分类失败"
+	MsgCategoryCreateSuccess    = "添加分类成功"
+	MsgCategoryDeleteSuccess    = "删除分类成功"
+	MsgCategoryDeleteFailed     = "删除分类失败"
+	MsgCategoryNameRequired     = "分类名称不能为空"
+	MsgCategoryUpdateSuccess    = "修改分类成功"
+	MsgCategoryUpdateFailed     = "修改分类失败"
+	MsgCategoryIDOrNameRequired = "分类ID或名称至少需要提供一个"
 )
 
 // 用户相关常量

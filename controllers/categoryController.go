@@ -3,6 +3,7 @@ package controllers
 import (
 	"errors"
 	"net/http"
+	"strconv"
 
 	"github.com/antidote-kt/SSE_Library-back/constant"
 	"github.com/antidote-kt/SSE_Library-back/dao"
@@ -199,4 +200,159 @@ func AddCategory(c *gin.Context) {
 
 	// 5. 返回成功响应
 	response.Success(c, gin.H{"success": true}, constant.MsgCategoryCreateSuccess)
+}
+
+// DeleteCategory 删除分类或课程
+// DELETE /api/category?name=xxx
+func DeleteCategory(c *gin.Context) {
+	// 获取查询参数 name
+	name := c.Query("name")
+	if name == "" {
+		response.Fail(c, http.StatusBadRequest, nil, constant.MsgCategoryNameRequired)
+		return
+	}
+
+	// 检查分类是否存在
+	categories, err := dao.GetCategoryByName(name)
+	if err != nil {
+		response.Fail(c, http.StatusInternalServerError, nil, constant.MsgDatabaseQueryFailed)
+		return
+	}
+
+	if len(categories) == 0 {
+		response.Fail(c, http.StatusNotFound, nil, constant.CategoryNotExist)
+		return
+	}
+
+	// 删除分类（软删除）
+	err = dao.DeleteCategoryByName(name)
+	if err != nil {
+		response.Fail(c, http.StatusInternalServerError, nil, constant.MsgCategoryDeleteFailed)
+		return
+	}
+
+	// 返回成功响应（根据图片要求，返回格式为 {"code": 0, "message": "string"}）
+	response.Success(c, nil, constant.MsgCategoryDeleteSuccess)
+}
+
+// ModifyCategoryResponse 修改分类响应结构体
+type ModifyCategoryResponse struct {
+	ID          uint64 `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	IsCourse    string `json:"isCourse"`
+	ParentID    uint64 `json:"parentId"`
+}
+
+// ModifyCategory 修改分类或课程
+// PUT /api/category
+func ModifyCategory(c *gin.Context) {
+	var request dto.ModifyCategoryDTO
+
+	// 解析请求参数
+	if err := c.ShouldBind(&request); err != nil {
+		response.Fail(c, http.StatusBadRequest, nil, constant.ParamParseError)
+		return
+	}
+
+	// 至少需要提供 id 或 name 来定位分类
+	if request.ID == nil && (request.Name == nil || *request.Name == "") {
+		response.Fail(c, http.StatusBadRequest, nil, constant.MsgCategoryIDOrNameRequired)
+		return
+	}
+
+	var category models.Category
+	var err error
+
+	// 根据 id 或 name 查找分类
+	if request.ID != nil {
+		category, err = dao.GetCategoryByID(*request.ID)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				response.Fail(c, http.StatusNotFound, nil, constant.CategoryNotExist)
+				return
+			}
+			response.Fail(c, http.StatusInternalServerError, nil, constant.MsgDatabaseQueryFailed)
+			return
+		}
+	} else if request.Name != nil && *request.Name != "" {
+		categories, err := dao.GetCategoryByName(*request.Name)
+		if err != nil {
+			response.Fail(c, http.StatusInternalServerError, nil, constant.MsgDatabaseQueryFailed)
+			return
+		}
+		if len(categories) == 0 {
+			response.Fail(c, http.StatusNotFound, nil, constant.CategoryNotExist)
+			return
+		}
+		// 如果找到多个同名分类，取第一个
+		category = categories[0]
+	}
+
+	// 动态更新分类字段（仅更新客户端提供的字段）
+	if request.Name != nil && *request.Name != "" {
+		category.Name = *request.Name
+	}
+	if request.Description != nil {
+		category.Description = *request.Description
+	}
+	if request.IsCourse != nil {
+		// 将 string 转换为 bool
+		isCourse, err := strconv.ParseBool(*request.IsCourse)
+		if err != nil {
+			// 如果转换失败，尝试其他可能的格式
+			if *request.IsCourse == "1" || *request.IsCourse == "true" || *request.IsCourse == "True" {
+				isCourse = true
+			} else {
+				isCourse = false
+			}
+		}
+		category.IsCourse = isCourse
+	}
+	if request.ParentID != nil {
+		// 如果 parentId 为 0，表示设置为顶级分类
+		if *request.ParentID == 0 {
+			category.ParentID = nil
+		} else {
+			// 验证父分类是否存在
+			parentCategory, err := dao.GetCategoryByID(*request.ParentID)
+			if err != nil {
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					response.Fail(c, http.StatusNotFound, nil, "父分类不存在")
+					return
+				}
+				response.Fail(c, http.StatusInternalServerError, nil, constant.MsgDatabaseQueryFailed)
+				return
+			}
+			category.ParentID = &parentCategory.ID
+		}
+	}
+
+	// 更新分类到数据库
+	err = dao.UpdateCategory(&category)
+	if err != nil {
+		response.Fail(c, http.StatusInternalServerError, nil, constant.MsgCategoryUpdateFailed)
+		return
+	}
+
+	// 构建响应数据
+	parentID := uint64(0)
+	if category.ParentID != nil {
+		parentID = *category.ParentID
+	}
+	isCourseStr := "false"
+	if category.IsCourse {
+		isCourseStr = "true"
+	}
+
+	responseData := ModifyCategoryResponse{
+		ID:          category.ID,
+		Name:        category.Name,
+		Description: category.Description,
+		IsCourse:    isCourseStr,
+		ParentID:    parentID,
+	}
+
+	// 返回成功响应（根据图片要求，返回格式包含 data 对象）
+	response.SuccessWithData(c, responseData, constant.MsgCategoryUpdateSuccess)
 }

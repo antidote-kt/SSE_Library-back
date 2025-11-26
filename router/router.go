@@ -32,6 +32,8 @@ func SetupRouter() *gin.Engine {
 		authed.GET("/chat/search", controllers.SearchChatMessages)       //搜索聊天记录
 		authed.GET("/category", controllers.GetCategoriesAndCourses)     // 获取分类和课程
 		authed.GET("/searchcat", controllers.SearchCategoriesAndCourses) // 搜索分类和课程
+		authed.PUT("/category", controllers.ModifyCategory)              // 修改分类或课程
+		authed.DELETE("/category", controllers.DeleteCategory)           // 删除分类或课程
 		authed.POST("/category", controllers.AddCategory)                // 添加分类
 		authed.POST("/chat/message", controllers.SendMessage)            // 发送消息
 		authed.GET("/chat/sessions", controllers.GetSessionList)         // 获取当前用户的所有会话列表
