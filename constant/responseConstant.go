@@ -127,3 +127,11 @@ const (
 	SearchKeyLack         = "searchKey参数不能为空"
 	UserNotInSession      = "用户不是会话的参与者"
 )
+
+const (
+	GetNotificationSuccess = "成功获取通知"
+	NotificationIDInvalid  = "通知ID无效"
+	NotificationNotExist   = "通知不存在"
+	MarkReadFailed         = "标记已读失败"
+	MarkReadSuccess        = "标记已读成功"
+)

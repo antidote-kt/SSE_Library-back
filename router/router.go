@@ -23,15 +23,16 @@ func SetupRouter() *gin.Engine {
 	authed.Use(middlewares.AuthMiddleware())
 	{
 		// 通用接口
-		authed.GET("/:document_id/comments", controllers.GetComments) // 获取对某书的评论列表
-		authed.GET("/user/:user_id", controllers.GetProfile)          //查看个人主页
-		authed.PUT("/user/:user_id", controllers.ModifyInfo)          //修改个人资料
-		authed.GET("/document/:id", controllers.GetDocumentByID)      // 获取文档详情
-		authed.GET("/searchdoc", controllers.SearchDocument)          //搜索文档
-		authed.PUT("/document", controllers.ModifyDocument)           // 文件信息修改（上传该文件的用户才能修改）
-		authed.GET("/chat/messages", controllers.GetChatMessages)     //获取聊天记录
-		authed.GET("/chat/search", controllers.SearchChatMessages)    //搜索聊天记录
-
+		authed.GET("/:document_id/comments", controllers.GetComments)  // 获取对某书的评论列表
+		authed.GET("/user/:user_id", controllers.GetProfile)           //查看个人主页
+		authed.PUT("/user/:user_id", controllers.ModifyInfo)           //修改个人资料
+		authed.GET("/document/:id", controllers.GetDocumentByID)       // 获取文档详情
+		authed.GET("/searchdoc", controllers.SearchDocument)           //搜索文档
+		authed.PUT("/document", controllers.ModifyDocument)            // 文件信息修改（上传该文件的用户才能修改）
+		authed.GET("/chat/messages", controllers.GetChatMessages)      //获取聊天记录
+		authed.GET("/chat/search", controllers.SearchChatMessages)     //搜索聊天记录
+		authed.GET("/getReminder", controllers.GetNotification)        //获取提醒
+		authed.POST("/markReminderRead", controllers.MarkNotification) //标记提醒为已读
 		// 用户相关操作
 		userApi := authed.Group("/user")
 		{
