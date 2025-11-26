@@ -19,6 +19,22 @@ type ChatRecordResponse struct {
 	Status       string `json:"status"`
 }
 
+// SessionResponse 会话列表响应(单个会话)结构
+// 包含session数据模型的相关信息（ID、user1、user2）以及每个会话具体信息（avatar、username、LastMessage、LastTime、UnreadCount）
+// 因为接口返回数据不仅仅是models.session包含的信息，还有其他特定需要的信息，因此要额外为响应数据定义结构体
+type SessionResponse struct {
+	SessionID   uint64 `json:"sessionId"`
+	UserID1     uint64 `json:"userId1"`
+	Avatar1     string `json:"avatar1"`
+	Username1   string `json:"username1"`
+	UserID2     uint64 `json:"userId2"`
+	Avatar2     string `json:"avatar2"`
+	Username2   string `json:"username2"`
+	LastMessage string `json:"lastMessage"` // 最后一条消息内容
+	LastTime    string `json:"lastTime"`    // 最后一条消息时间
+	UnreadCount uint64 `json:"unreadCount"` // 未读消息数
+}
+
 func BuildChatRecordResponse(message models.Message) (ChatRecordResponse, error) {
 	// 获取发送者用户信息
 	sender, err := dao.GetUserByID(message.SenderID)

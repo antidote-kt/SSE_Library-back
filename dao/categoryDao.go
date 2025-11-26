@@ -82,3 +82,9 @@ func GetRecentCategories(days int) ([]models.Category, error) {
 	err := db.Where("updated_at >= ? AND deleted_at IS NULL", cutoffTime).Find(&categories).Error
 	return categories, err
 }
+
+// CreateCategory 创建新的分类/课程
+func CreateCategory(category *models.Category) error {
+	db := config.GetDB()
+	return db.Create(category).Error
+}

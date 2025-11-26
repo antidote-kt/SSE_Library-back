@@ -13,24 +13,28 @@ func SetupRouter() *gin.Engine {
 
 	api.POST("/login", controllers.Login)
 	api.POST("/register", controllers.RegisterUser)
-	api.POST("/VCode", controllers.SendVerificationCode)          // 请求验证码（临时生成，采用POST）
-	api.PUT("/Password", controllers.ChangePassword)              //修改密码
-	api.GET("/category", controllers.GetCategoriesAndCourses)     // 获取分类和课程
-	api.GET("/searchcat", controllers.SearchCategoriesAndCourses) // 搜索分类和课程
+	api.POST("/VCode", controllers.SendVerificationCode) // 请求验证码（临时生成，采用POST）
+	api.PUT("/Password", controllers.ChangePassword)     //修改密码
+	api.GET("/ws", controllers.ConnectWS)                // WebSocket连接
 
 	// --- 需要认证才能访问的路由 ---
 	authed := api.Group("/")
 	authed.Use(middlewares.AuthMiddleware())
 	{
 		// 通用接口
-		authed.GET("/:document_id/comments", controllers.GetComments) // 获取对某书的评论列表
-		authed.GET("/user/:user_id", controllers.GetProfile)          //查看个人主页
-		authed.PUT("/user/:user_id", controllers.ModifyInfo)          //修改个人资料
-		authed.GET("/document/:id", controllers.GetDocumentByID)      // 获取文档详情
-		authed.GET("/searchdoc", controllers.SearchDocument)          //搜索文档
-		authed.PUT("/document", controllers.ModifyDocument)           // 文件信息修改（上传该文件的用户才能修改）
-		authed.GET("/chat/messages", controllers.GetChatMessages)     //获取聊天记录
-		authed.GET("/chat/search", controllers.SearchChatMessages)    //搜索聊天记录
+		authed.GET("/:document_id/comments", controllers.GetComments)    // 获取对某书的评论列表
+		authed.GET("/user/:user_id", controllers.GetProfile)             //查看个人主页
+		authed.PUT("/user/:user_id", controllers.ModifyInfo)             //修改个人资料
+		authed.GET("/document/:id", controllers.GetDocumentByID)         // 获取文档详情
+		authed.GET("/searchdoc", controllers.SearchDocument)             //搜索文档
+		authed.PUT("/document", controllers.ModifyDocument)              // 文件信息修改（上传该文件的用户才能修改）
+		authed.GET("/chat/messages", controllers.GetChatMessages)        //获取聊天记录
+		authed.GET("/chat/search", controllers.SearchChatMessages)       //搜索聊天记录
+		authed.GET("/category", controllers.GetCategoriesAndCourses)     // 获取分类和课程
+		authed.GET("/searchcat", controllers.SearchCategoriesAndCourses) // 搜索分类和课程
+		authed.POST("/category", controllers.AddCategory)                // 添加分类
+		authed.POST("/chat/message", controllers.SendMessage)            // 发送消息
+		authed.GET("/chat/sessions", controllers.GetSessionList)         // 获取当前用户的所有会话列表
 
 		// 用户相关操作
 		userApi := authed.Group("/user")
@@ -50,8 +54,8 @@ func SetupRouter() *gin.Engine {
 		adminApi := authed.Group("/admin")
 		adminApi.Use(middlewares.AdminCheckMiddleware())
 		{
-			adminApi.PUT("/user", controllers.UpdateUserStatus) //更新用户状态
-			adminApi.GET("/user", controllers.GetUsers)
+			adminApi.PUT("/user", controllers.UpdateUserStatus)                     //更新用户状态
+			adminApi.GET("/user", controllers.GetUsers)                             //搜索单个用户
 			adminApi.GET("/usersList", controllers.GetUsers)                        // GetUsers同时支持获取列表和搜索
 			adminApi.PUT("/document/status", controllers.AdminModifyDocumentStatus) //管理员修改文档状态
 			adminApi.GET("/comments", controllers.GetAllComments)                   // 管理员获取所有评论（需要认证）

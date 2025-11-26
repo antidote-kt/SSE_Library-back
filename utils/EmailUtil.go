@@ -32,7 +32,7 @@ func SendVerificationEmail(toEmail, code string) error {
 	err := pool.Send(e, 10*time.Second) // 设置10秒超时
 	if err != nil {
 		log.Printf("发送邮件到 %s 失败: %v", toEmail, err)
-		return fmt.Errorf("发送邮件失败")
+		return err
 	}
 
 	log.Printf("验证码邮件已成功发送到 %s", toEmail)

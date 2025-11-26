@@ -1,12 +1,15 @@
 package controllers
 
 import (
+	"errors"
 	"net/http"
 
+	"github.com/antidote-kt/SSE_Library-back/constant"
 	"github.com/antidote-kt/SSE_Library-back/dao"
 	"github.com/antidote-kt/SSE_Library-back/dto"
 	"github.com/antidote-kt/SSE_Library-back/response"
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 // UpdateUserStatus 管理员修改指定用户的状态
@@ -15,34 +18,43 @@ func UpdateUserStatus(c *gin.Context) {
 
 	// 1. 绑定Query参数
 	if err := c.ShouldBindQuery(&req); err != nil {
-		response.Fail(c, http.StatusBadRequest, nil, "参数无效: "+err.Error())
+		response.Fail(c, http.StatusBadRequest, nil, constant.ParamParseError)
 		return
 	}
 
 	// 2. 验证status字段是否合法 (例如：只能是 "active" 或 "disabled")
 	if req.Status != "active" && req.Status != "disabled" {
-		response.Fail(c, http.StatusBadRequest, nil, "无效的状态值")
+		response.Fail(c, http.StatusBadRequest, nil, constant.IllegalStatus)
 		return
 	}
 
 	// 3. 获取要修改的用户
 	user, err := dao.GetUserByID(req.UserID)
 	if err != nil {
-		response.Fail(c, http.StatusNotFound, nil, "用户不存在")
+		response.Fail(c, http.StatusNotFound, nil, constant.UserNotExist)
 		return
 	}
 
 	// 4. 更新状态并保存到数据库
 	user.Status = req.Status
 	if err := dao.UpdateUser(user); err != nil {
-		response.Fail(c, http.StatusInternalServerError, nil, "更新用户状态失败")
+		response.Fail(c, http.StatusInternalServerError, nil, constant.UpdateUserStatusFailed)
 		return
 	}
 
-	// 5. 构造并返回更新后的用户信息
-	response.Success(c, gin.H{
-		"data": buildUserBriefDTO(user), // 复用user_controller中的辅助函数
-	}, "用户状态更新成功")
+	// 5.调用response层的结构体组装返回数据
+	userBrief := response.UserBriefResponse{
+		UserID:     user.ID,
+		Username:   user.Username,
+		UserAvatar: user.Avatar,
+		Status:     user.Status,
+		CreateTime: user.CreatedAt.Format("2006-01-02 15:04:05"),
+		Email:      user.Email,
+		Role:       user.Role,
+	}
+
+	// 6. 构造并返回更新后的用户信息
+	response.SuccessWithData(c, userBrief, constant.UpdateUserStatusSuccess)
 }
 
 // GetUsers 获取或搜索用户列表
@@ -51,23 +63,40 @@ func GetUsers(c *gin.Context) {
 
 	// 1. 绑定可选的Query参数
 	if err := c.ShouldBindQuery(&req); err != nil {
-		response.Fail(c, http.StatusBadRequest, nil, "参数无效: "+err.Error())
+		response.Fail(c, http.StatusBadRequest, nil, constant.ParamParseError)
 		return
 	}
 
 	// 2. 调用DAO层进行查询
 	users, err := dao.GetUsers(req.Username, req.UserID)
 	if err != nil {
-		response.Fail(c, http.StatusInternalServerError, nil, "查询用户列表失败")
+		// 如果用户不存在
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			response.Fail(c, http.StatusNotFound, nil, constant.UserNotExist)
+			return
+		}
+		// 其他数据库错误
+		response.Fail(c, http.StatusInternalServerError, nil, constant.DatabaseError)
 		return
 	}
 
-	// 3. 将用户列表转换为DTO列表
-	var userDTOs []dto.UserBriefDTO
+	// 3. 将用户列表转换为response层的响应结构列表
+	var userResponses []response.UserBriefResponse
 	for _, user := range users {
-		userDTOs = append(userDTOs, buildUserBriefDTO(user))
+		// 调用已有的 BuildUserBriefResponse 函数处理单个用户
+		userBrief := response.UserBriefResponse{
+			UserID:     user.ID,
+			Username:   user.Username,
+			UserAvatar: user.Avatar,
+			Status:     user.Status,
+			CreateTime: user.CreatedAt.Format("2006-01-02 15:04:05"),
+			Email:      user.Email,
+			Role:       user.Role,
+		}
+		// 将处理后的用户信息添加到列表中
+		userResponses = append(userResponses, userBrief)
 	}
 
 	// 4. 返回成功的响应
-	response.Success(c, gin.H{"data": userDTOs}, "获取用户列表成功")
+	response.SuccessWithData(c, userResponses, constant.GetUserSuccess)
 }
