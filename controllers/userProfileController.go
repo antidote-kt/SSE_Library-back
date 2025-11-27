@@ -18,7 +18,7 @@ func GetProfile(c *gin.Context) {
 	// 1. 从JWT中间件获取用户信息
 	claims, exists := c.Get(constant.UserClaims)
 	if !exists {
-		response.Fail(c, http.StatusUnauthorized, nil, "无法获取用户信息，请重新登录")
+		response.Fail(c, http.StatusUnauthorized, nil, constant.GetUserInfoFailed)
 		return
 	}
 	userClaims := claims.(*utils.MyClaims)
@@ -26,12 +26,12 @@ func GetProfile(c *gin.Context) {
 	paramUserID := c.Param("user_id")
 	targetID, err := strconv.ParseUint(paramUserID, 10, 64)
 	if err != nil {
-		response.Fail(c, http.StatusBadRequest, nil, "无效的用户ID格式")
+		response.Fail(c, http.StatusBadRequest, nil, constant.UserIDFormatError)
 		return
 	}
 	userID := userClaims.UserID
 	if userID != targetID {
-		response.Fail(c, http.StatusUnauthorized, nil, "访问的主页不是您本人的主页")
+		response.Fail(c, http.StatusUnauthorized, nil, constant.NonSelf)
 		return
 	}
 
@@ -80,20 +80,20 @@ func GetProfile(c *gin.Context) {
 		case hl := <-historyChan:
 			historyList = hl
 		case err := <-errChan:
-			response.Fail(c, http.StatusInternalServerError, nil, "获取数据失败: "+err.Error())
+			response.Fail(c, http.StatusInternalServerError, nil, constant.GetDataFailed+err.Error())
 			return
 		}
 	}
 
-	// 3. 组装成 DTO
-	homepageDTO := dto.HomepageDTO{
-		UserBrief:      buildUserBriefDTO(user),
-		Password:       user.Password,
-		CollectionList: buildDocumentDetailDTOs(collectionList),
-		HistoryList:    buildDocumentDetailDTOs(historyList),
+	// 3. 调用response层组装返回数据
+	homepageResponse, err := response.BuildHomepageResponse(user, collectionList, historyList)
+	if err != nil {
+		response.Fail(c, http.StatusInternalServerError, nil, constant.ConstructDataFailed)
+		return
 	}
 
-	response.Success(c, gin.H{"profile": homepageDTO}, "获取个人主页信息成功")
+	// 4. 返回响应
+	response.SuccessWithData(c, homepageResponse, constant.GetUserProfileSuccess)
 }
 
 // ModifyInfo 修改当前登录用户的个人资料
@@ -102,12 +102,12 @@ func ModifyInfo(c *gin.Context) {
 
 	// 1. 绑定并验证参数
 	if err := c.ShouldBind(&req); err != nil {
-		response.Fail(c, http.StatusBadRequest, nil, "参数格式错误: "+err.Error())
+		response.Fail(c, http.StatusBadRequest, nil, constant.ParamParseError+err.Error())
 		return
 	}
 
 	// 2. 从JWT中间件获取用户信息
-	claims, exists := c.Get("user_claims")
+	claims, exists := c.Get(constant.UserClaims)
 	if !exists {
 		response.Fail(c, http.StatusUnauthorized, nil, constant.GetUserInfoFailed)
 		return
@@ -117,7 +117,7 @@ func ModifyInfo(c *gin.Context) {
 	// 3. 从数据库获取当前用户
 	user, err := dao.GetUserByID(userClaims.UserID)
 	if err != nil {
-		response.Fail(c, http.StatusNotFound, nil, "用户不存在")
+		response.Fail(c, http.StatusNotFound, nil, constant.UserNotExist)
 		return
 	}
 
@@ -128,7 +128,7 @@ func ModifyInfo(c *gin.Context) {
 		// 检查新用户名是否已被其他用户占用
 		existingUser, _ := dao.GetUserByUsername(*req.UserName)
 		if existingUser.ID != 0 && existingUser.ID != user.ID {
-			response.Fail(c, http.StatusUnprocessableEntity, nil, "用户名已存在")
+			response.Fail(c, http.StatusUnprocessableEntity, nil, constant.UserNameAlreadyExist)
 			return
 		}
 		user.Username = *req.UserName
@@ -138,7 +138,7 @@ func ModifyInfo(c *gin.Context) {
 		// 检查新邮箱是否已被其他用户占用
 		existingUser, _ := dao.GetUserByEmail(*req.Email)
 		if existingUser.ID != 0 && existingUser.ID != user.ID {
-			response.Fail(c, http.StatusUnprocessableEntity, nil, "邮箱已被注册")
+			response.Fail(c, http.StatusUnprocessableEntity, nil, constant.EmailHasBeenUsed)
 			return
 		}
 		user.Email = *req.Email
@@ -148,13 +148,13 @@ func ModifyInfo(c *gin.Context) {
 		// 检查用户是否上传了新头像，有的话删除原头像
 		err := utils.DeleteFile(user.Avatar)
 		if err != nil {
-			response.Fail(c, http.StatusInternalServerError, nil, "头像删除失败")
+			response.Fail(c, http.StatusInternalServerError, nil, constant.AvatarDeleteFailed)
 			return
 		}
 		// 然后上传新头像到腾讯云
 		avatarURL, err := utils.UploadAvatar(req.UserAvatar)
 		if err != nil {
-			response.Fail(c, http.StatusInternalServerError, nil, "头像上传失败")
+			response.Fail(c, http.StatusInternalServerError, nil, err.Error())
 			return
 		}
 		//最后更新头像链接到数据模型
@@ -164,133 +164,27 @@ func ModifyInfo(c *gin.Context) {
 
 	// 如果没有任何更新，可以直接返回成功
 	if !updated {
-		response.Success(c, nil, "没有需要更新的信息")
+		response.Success(c, nil, constant.NoChangeHappen)
 		return
 	}
 
 	// 5. 保存到数据库
 	if err := dao.UpdateUser(user); err != nil {
-		response.Fail(c, http.StatusInternalServerError, nil, "更新用户信息失败")
+		response.Fail(c, http.StatusInternalServerError, nil, constant.UpdateUserInfoFailed)
 		return
 	}
 
-	// 6. 按照要求，返回更新后的UserBrief信息
-	response.Success(c, gin.H{
-		"userBrief": buildUserBriefDTO(user),
-	}, "个人资料修改成功")
-}
-
-// --- 以下是辅助函数，用于将Model转换为DTO ---
-
-// buildUserBriefDTO 将 models.User 转换为 dto.UserBriefDTO
-func buildUserBriefDTO(user models.User) dto.UserBriefDTO {
-	return dto.UserBriefDTO{
+	// 6. 调用response层的结构体组装返回数据
+	userBrief := response.UserBriefResponse{
 		UserID:     user.ID,
 		Username:   user.Username,
-		UserAvatar: user.Avatar,
+		UserAvatar: utils.GetFileURL(user.Avatar), // 使用工具函数处理头像URL
 		Status:     user.Status,
 		CreateTime: user.CreatedAt.Format("2006-01-02 15:04:05"),
 		Email:      user.Email,
 		Role:       user.Role,
 	}
-}
 
-// buildDocumentDetailDTOs 将 []models.Document 转换为 []dto.DocumentDetailDTO
-func buildDocumentDetailDTOs(documents []models.Document) []dto.DocumentDetailDTO {
-	var dtoList []dto.DocumentDetailDTO
-	if len(documents) == 0 {
-		return dtoList
-	}
-
-	// --- 性能优化：批量收集所有需要的ID ---
-	uploaderIDs := make(map[uint64]bool)
-	categoryIDs := make(map[uint64]bool)
-	docIDs := make([]uint64, len(documents))
-
-	for i, doc := range documents {
-		docIDs[i] = doc.ID
-		uploaderIDs[doc.UploaderID] = true
-		categoryIDs[doc.CategoryID] = true
-	}
-
-	// --- 批量查询关联数据 ---
-	// 1. 批量查询所有相关的上传者
-	users, _ := dao.GetUsersByIDs(mapToSlice(uploaderIDs)) // 假设DAO中有此函数
-	userMap := make(map[uint64]models.User)
-	for _, u := range users {
-		userMap[u.ID] = u
-	}
-
-	// 2. 批量查询所有相关的分类，以及它们的父分类
-	categories, _ := dao.GetCategoriesByIDs(mapToSlice(categoryIDs))
-	categoryMap := make(map[uint64]models.Category)
-	parentIDsToFetch := make(map[uint64]bool)
-	for _, cat := range categories {
-		categoryMap[cat.ID] = cat
-		if !cat.IsCourse && cat.ParentID != nil && *cat.ParentID != 0 {
-			parentIDsToFetch[*cat.ParentID] = true
-		}
-	}
-	parentCategories, _ := dao.GetCategoriesByIDs(mapToSlice(parentIDsToFetch))
-	for _, pCat := range parentCategories {
-		categoryMap[pCat.ID] = pCat // 将父分类也加入map，方便查找
-	}
-
-	//// 3. 批量查询所有相关的标签
-	//tags, _ := dao.GetTagsByDocumentIDs(docIDs) // 假设DAO中有此函数，返回 map[uint64][]models.Tag
-	//tagMap := tags
-
-	// --- 在内存中高效组装DTO ---
-	for _, doc := range documents {
-		uploader := userMap[doc.UploaderID]
-		category := categoryMap[doc.CategoryID]
-
-		//var tagNames []string
-		//if docTags, ok := tagMap[doc.ID]; ok {
-		//	for _, tag := range docTags {
-		//		tagNames = append(tagNames, tag.TagName)
-		//	}
-		//}
-
-		courseName := ""
-		if category.IsCourse {
-			courseName = category.Name
-		} else if category.ParentID != nil {
-			if parentCat, ok := categoryMap[*category.ParentID]; ok && parentCat.IsCourse {
-				courseName = parentCat.Name
-			}
-		}
-
-		dtoList = append(dtoList, dto.DocumentDetailDTO{
-			InfoBrief: dto.InfoBriefDTO{
-				Name:        doc.Name,
-				DocumentID:  doc.ID,
-				Type:        doc.Type,
-				UploadTime:  doc.CreatedAt.Format("2006-01-02 15:04:05"),
-				Status:      doc.Status,
-				Category:    category.Name,
-				Course:      courseName,
-				Collections: doc.Collections,
-				ReadCounts:  doc.ReadCounts,
-				URL:         utils.GetFileURL(doc.URL),
-			},
-			BookISBN: doc.BookISBN,
-			Author:   doc.Author,
-			Uploader: buildUserBriefDTO(uploader),
-			Cover:    utils.GetFileURL(doc.Cover),
-			//Tags:         tagNames,
-			Introduction: doc.Introduction,
-			CreateYear:   doc.CreateYear,
-		})
-	}
-	return dtoList
-}
-
-// mapToSlice 是一个辅助函数，将map的key转换为slice
-func mapToSlice(m map[uint64]bool) []uint64 {
-	s := make([]uint64, 0, len(m))
-	for k := range m {
-		s = append(s, k)
-	}
-	return s
+	// 7. 按照要求，返回更新后的UserBrief信息
+	response.SuccessWithData(c, userBrief, constant.UpdateUserInfoSuccess)
 }

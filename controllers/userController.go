@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/antidote-kt/SSE_Library-back/constant"
 	"github.com/antidote-kt/SSE_Library-back/dao"
 	"github.com/antidote-kt/SSE_Library-back/dto"
 	"github.com/antidote-kt/SSE_Library-back/models"
@@ -18,7 +19,7 @@ func RegisterUser(c *gin.Context) {
 	var req dto.RegisterDTO // 定义一个用于绑定请求参数的结构体
 	// 1. 绑定并验证请求参数
 	if err := c.ShouldBind(&req); err != nil {
-		response.Fail(c, http.StatusBadRequest, nil, "参数绑定失败")
+		response.Fail(c, http.StatusBadRequest, nil, constant.ParamParseError)
 		// 如果绑定失败，调用response层返回错误响应
 	}
 
@@ -26,25 +27,25 @@ func RegisterUser(c *gin.Context) {
 	_, err := dao.GetUserByUsername(req.Username)
 	if err == nil {
 		//如果返回为nil,说明数据查到了用户名，出现重复，注册失败
-		response.Fail(c, http.StatusBadRequest, nil, "用户名已存在")
+		response.Fail(c, http.StatusBadRequest, nil, constant.UserNameAlreadyExist)
 		return
 	}
 
 	// 如果 err 不是 nil，我们需要判断它到底是什么错误
 	if !errors.Is(err, gorm.ErrRecordNotFound) {
 		// 如果错误不是 "记录未找到"，那它就是一个我们没预料到的数据库内部错误
-		response.Fail(c, http.StatusInternalServerError, nil, "数据库查询失败")
+		response.Fail(c, http.StatusInternalServerError, nil, constant.DatabaseError)
 		return
 	}
 
 	// 3.验证邮箱验证码（如果邮箱已注册用户，验证码就无法发出，前端也就无法正常调用此接口，因此我们无需再次额外检查邮箱是否已被注册）
 	isValidCode, err := utils.CheckVerificationCode(req.Email, "register", req.VerificationCode)
 	if err != nil {
-		response.Fail(c, http.StatusInternalServerError, nil, "验证码校验时发生错误")
+		response.Fail(c, http.StatusInternalServerError, nil, constant.VerificationCodeCheckError)
 		return
 	}
 	if !isValidCode {
-		response.Fail(c, http.StatusBadRequest, nil, "验证码错误或已过期")
+		response.Fail(c, http.StatusBadRequest, nil, constant.VerificationCodeExpired)
 		return
 	}
 
@@ -60,7 +61,7 @@ func RegisterUser(c *gin.Context) {
 	// 6. 加密密码
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
-		response.Fail(c, http.StatusInternalServerError, nil, "密码加密失败")
+		response.Fail(c, http.StatusInternalServerError, nil, constant.PasswordEncryptFailed)
 		return
 	}
 
@@ -77,13 +78,23 @@ func RegisterUser(c *gin.Context) {
 	// 8. 保存到数据库
 	createdUser, err := dao.CreateUser(newUser)
 	if err != nil {
-		response.Fail(c, http.StatusInternalServerError, nil, "用户注册失败")
+		response.Fail(c, http.StatusInternalServerError, nil, constant.UserRegisterFailed)
 		return
 	}
 
-	// 9. 返回成功响应
-	createdUserDTO := buildUserBriefDTO(createdUser) //使用UserDTO中封装的用户简要信息模板，实现统一接口返回格式
-	response.Success(c, gin.H{"user:": createdUserDTO}, "注册成功")
+	// 9.调用response层的结构体组装返回数据
+	userBrief := response.UserBriefResponse{
+		UserID:     createdUser.ID,
+		Username:   createdUser.Username,
+		UserAvatar: createdUser.Avatar,
+		Status:     createdUser.Status,
+		CreateTime: createdUser.CreatedAt.Format("2006-01-02 15:04:05"),
+		Email:      createdUser.Email,
+		Role:       createdUser.Role,
+	}
+
+	// 10. 返回响应
+	response.SuccessWithData(c, userBrief, constant.UserRegisterSuccess)
 }
 
 // Login 处理用户登录请求
@@ -92,7 +103,7 @@ func Login(c *gin.Context) {
 
 	// 1. 绑定并验证参数
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(c, http.StatusBadRequest, nil, "参数格式错误: "+err.Error())
+		response.Fail(c, http.StatusBadRequest, nil, constant.ParamParseError)
 		return
 	}
 
@@ -100,33 +111,43 @@ func Login(c *gin.Context) {
 	user, err := dao.GetUserByEmail(req.Email)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			response.Fail(c, http.StatusUnauthorized, nil, "用户邮箱错误")
+			response.Fail(c, http.StatusUnauthorized, nil, constant.UnauthorizedEmail)
 			return
 		}
-		response.Fail(c, http.StatusInternalServerError, nil, "数据库查询失败")
+		response.Fail(c, http.StatusInternalServerError, nil, constant.DatabaseError)
 		return
 	}
 
 	// 3. 校验密码
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password))
 	if err != nil {
-		response.Fail(c, http.StatusUnauthorized, nil, "密码错误")
+		response.Fail(c, http.StatusUnauthorized, nil, constant.PasswordFalse)
 		return
 	}
 
 	// 4. 生成JWT
 	token, err := utils.GenerateToken(user.ID, user.Username, user.Role)
 	if err != nil {
-		response.Fail(c, http.StatusInternalServerError, nil, "Token生成失败")
+		response.Fail(c, http.StatusInternalServerError, nil, constant.TokenGenerateFailed)
 		return
 	}
 
-	// 5. 返回成功响应
-	UserDTO := buildUserBriefDTO(user) //使用UserDTO中封装的用户简要信息模板，实现统一接口返回格式
+	// 5.调用response层的结构体组装返回数据
+	userBrief := response.UserBriefResponse{
+		UserID:     user.ID,
+		Username:   user.Username,
+		UserAvatar: user.Avatar,
+		Status:     user.Status,
+		CreateTime: user.CreatedAt.Format("2006-01-02 15:04:05"),
+		Email:      user.Email,
+		Role:       user.Role,
+	}
+
+	// 6. 构造并返回响应信息
 	response.Success(c, gin.H{
 		"token": token,
-		"user":  UserDTO,
-	}, "登录成功")
+		"user":  userBrief,
+	}, constant.UserLoginSuccess)
 }
 
 // ChangePassword 处理修改密码请求
@@ -135,46 +156,46 @@ func ChangePassword(c *gin.Context) {
 
 	// 1. 绑定并验证参数
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(c, http.StatusBadRequest, nil, "参数格式错误: "+err.Error())
+		response.Fail(c, http.StatusBadRequest, nil, constant.ParamParseError)
 		return
 	}
 
 	// 2. 根据当前邮箱查找用户，用于后续更新用户密码到数据库中
-	// 如果邮箱已注册用户，验证码就无法发出，也就无法正常调用此接口，因此这里我们无需再次用err检查邮箱是否已被注册
+	// 如果邮箱未注册用户，验证码就无法发出，也就无法正常调用此接口，因此这里我们无需再次用err检查邮箱是否已被注册
 	// 但是我们需要检查用户状态，是否已停用
 	user, _ := dao.GetUserByEmail(req.Email)
 	if user.Status == "disabled" {
-		response.Fail(c, http.StatusBadRequest, nil, "用户已被停用")
+		response.Fail(c, http.StatusBadRequest, nil, constant.UserBeenSuspended)
 		return
 	}
 
 	// 3. 验证邮箱验证码
 	isValidCode, err := utils.CheckVerificationCode(req.Email, "reset-password", req.VerificationCode)
 	if err != nil {
-		response.Fail(c, http.StatusInternalServerError, nil, "验证码校验时发生错误")
+		response.Fail(c, http.StatusInternalServerError, nil, constant.VerificationCodeCheckError)
 		return
 	}
 	if !isValidCode {
-		response.Fail(c, http.StatusBadRequest, nil, "验证码错误或已过期")
+		response.Fail(c, http.StatusBadRequest, nil, constant.VerificationCodeExpired)
 		return
 	}
 
 	// 4. 加密新密码
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
 	if err != nil {
-		response.Fail(c, http.StatusInternalServerError, nil, "新密码加密失败")
+		response.Fail(c, http.StatusInternalServerError, nil, constant.PasswordEncryptFailed)
 		return
 	}
 
 	// 6. 更新用户密码
 	user.Password = string(hashedPassword)
 	if err := dao.UpdateUser(user); err != nil {
-		response.Fail(c, http.StatusInternalServerError, nil, "密码更新失败")
+		response.Fail(c, http.StatusInternalServerError, nil, constant.PasswordUpdateFailed)
 		return
 	}
 
 	// 7. 返回成功响应
 	response.Success(c, gin.H{
 		"success": true,
-	}, "密码修改成功")
+	}, constant.PasswordUpdateSuccess)
 }

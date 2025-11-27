@@ -68,7 +68,7 @@ func GetCategoriesAndCourses(c *gin.Context) {
 	// 获取所有分类和课程
 	categories, err := dao.GetAllCategories()
 	if err != nil {
-		response.Fail(c, http.StatusInternalServerError, nil, constant.MsgDatabaseQueryFailed)
+		response.Fail(c, constant.StatusInternalServerError, nil, constant.MsgDatabaseQueryFailed)
 		return
 	}
 
@@ -80,7 +80,7 @@ func GetCategoriesAndCourses(c *gin.Context) {
 		// 统计文档数量
 		fileCount, err := dao.CountDocumentsByCategory(category.ID)
 		if err != nil {
-			response.Fail(c, http.StatusInternalServerError, nil, constant.MsgDatabaseQueryFailed)
+			response.Fail(c, constant.StatusInternalServerError, nil, constant.MsgDatabaseQueryFailed)
 			return
 		}
 		fileCounts[category.ID] = fileCount
@@ -88,7 +88,7 @@ func GetCategoriesAndCourses(c *gin.Context) {
 		// 统计浏览量
 		readCount, err := dao.GetDocumentReadCountsByCategory(category.ID)
 		if err != nil {
-			response.Fail(c, http.StatusInternalServerError, nil, constant.MsgDatabaseQueryFailed)
+			response.Fail(c, constant.StatusInternalServerError, nil, constant.MsgDatabaseQueryFailed)
 			return
 		}
 		readCounts[category.ID] = readCount
@@ -98,6 +98,108 @@ func GetCategoriesAndCourses(c *gin.Context) {
 	categoryTree := buildCategoryTree(categories, fileCounts, readCounts)
 
 	response.SuccessWithData(c, categoryTree, constant.MsgGetCategoriesSuccess)
+}
+
+// SearchCategoriesAndCourses 搜索分类和课程
+// GET /api/searchcat?name=xxx
+func SearchCategoriesAndCourses(c *gin.Context) {
+	// 获取分类和课程
+	name := c.Query("name")
+	if name == "" {
+		// 如果没有搜索关键词，返回所有分类和课程
+		GetCategoriesAndCourses(c)
+		return
+	}
+
+	// 搜索分类和课程
+	categories, err := dao.SearchCategoriesByName(name)
+	if err != nil {
+		response.Fail(c, constant.StatusInternalServerError, nil, constant.MsgDatabaseQueryFailed)
+		return
+	}
+
+	// 统计每类文档的数量和浏览量
+	fileCounts := make(map[uint64]int64)
+	readCounts := make(map[uint64]int64)
+
+	for _, category := range categories {
+		// 统计文档数量
+		fileCount, err := dao.CountDocumentsByCategory(category.ID)
+		if err != nil {
+			response.Fail(c, constant.StatusInternalServerError, nil, constant.MsgCategoryCountFailed)
+			return
+		}
+		fileCounts[category.ID] = fileCount
+
+		// 统计浏览量
+		readCount, err := dao.GetDocumentReadCountsByCategory(category.ID)
+		if err != nil {
+			response.Fail(c, constant.StatusInternalServerError, nil, constant.MsgCategoryReadCountFailed)
+			return
+		}
+		readCounts[category.ID] = readCount
+	}
+
+	// 构建分类树
+	categoryTree := buildCategoryTree(categories, fileCounts, readCounts)
+
+	response.SuccessWithData(c, categoryTree, constant.MsgGetCategoriesSuccess)
+}
+
+// AddCategory 添加分类/课程接口
+func AddCategory(c *gin.Context) {
+	var req dto.AddCategoryDTO
+
+	// 1. 绑定参数
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Fail(c, http.StatusBadRequest, nil, constant.ParamParseError)
+		return
+	}
+
+	// 2. 业务校验
+	// 2.1 如果指定了父分类，检查父分类是否存在
+	if req.ParentCatID != nil && *req.ParentCatID != 0 {
+		_, err := dao.GetCategoryByID(*req.ParentCatID)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				response.Fail(c, http.StatusBadRequest, nil, constant.ParentCategoryNotExist)
+				return
+			}
+			response.Fail(c, http.StatusInternalServerError, nil, constant.DatabaseError)
+			return
+		}
+		//可选：检查父分类是否允许有子分类（例如，如果父分类本身是课程，不允许再有子分类）
+		//if parentCategory.IsCourse {
+		// response.Fail(c, http.StatusBadRequest, nil, "课程不能作为父分类")
+		// return
+		//}
+	}
+
+	// 2.2 检查同名分类 (防止重复)
+	existingCats, _ := dao.GetCategoryByName(req.Name)
+	if len(existingCats) > 0 {
+		// 简单的重名检查，更严格的检查应该看是否在同一个父分类下重名
+		response.Fail(c, http.StatusUnprocessableEntity, nil, constant.CategoryNameAlreadyExist)
+		return
+	}
+
+	// 3. 构建模型
+	category := models.Category{
+		Name:        req.Name,
+		IsCourse:    *req.IsCourse,
+		Description: req.Description,
+		ParentID:    req.ParentCatID,
+		// 其他三个时间相关字段在dao.CreateCategory(&category)这一步会由gorm自动处理
+	}
+
+	// 4. 保存到数据库
+	if err := dao.CreateCategory(&category); err != nil {
+		response.Fail(c, http.StatusInternalServerError, nil, constant.MsgCategoryCreateFailed)
+		return
+	}
+
+	// 5. 返回成功响应
+	response.Success(c, gin.H{"success": true}, constant.MsgCategoryCreateSuccess)
 }
 
 // DeleteCategory 删除分类或课程
@@ -253,50 +355,4 @@ func ModifyCategory(c *gin.Context) {
 
 	// 返回成功响应（根据图片要求，返回格式包含 data 对象）
 	response.SuccessWithData(c, responseData, constant.MsgCategoryUpdateSuccess)
-}
-
-// SearchCategoriesAndCourses 搜索分类和课程
-// GET /api/searchcat?name=xxx
-func SearchCategoriesAndCourses(c *gin.Context) {
-	// 获取分类和课程
-	name := c.Query("name")
-	if name == "" {
-		// 如果没有搜索关键词，返回所有分类和课程
-		GetCategoriesAndCourses(c)
-		return
-	}
-
-	// 搜索分类和课程
-	categories, err := dao.SearchCategoriesByName(name)
-	if err != nil {
-		response.Fail(c, http.StatusInternalServerError, nil, constant.MsgDatabaseQueryFailed)
-		return
-	}
-
-	// 统计每类文档的数量和浏览量
-	fileCounts := make(map[uint64]int64)
-	readCounts := make(map[uint64]int64)
-
-	for _, category := range categories {
-		// 统计文档数量
-		fileCount, err := dao.CountDocumentsByCategory(category.ID)
-		if err != nil {
-			response.Fail(c, http.StatusInternalServerError, nil, constant.MsgCategoryCountFailed)
-			return
-		}
-		fileCounts[category.ID] = fileCount
-
-		// 统计浏览量
-		readCount, err := dao.GetDocumentReadCountsByCategory(category.ID)
-		if err != nil {
-			response.Fail(c, http.StatusInternalServerError, nil, constant.MsgCategoryReadCountFailed)
-			return
-		}
-		readCounts[category.ID] = readCount
-	}
-
-	// 构建分类树
-	categoryTree := buildCategoryTree(categories, fileCounts, readCounts)
-
-	response.SuccessWithData(c, categoryTree, constant.MsgGetCategoriesSuccess)
 }
