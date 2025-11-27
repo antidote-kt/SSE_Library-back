@@ -127,7 +127,7 @@ func SearchDocumentsByParams(request dto.SearchDocumentDTO) ([]models.Document, 
 				query = query.Joins("LEFT JOIN document_tag ON documents.id = document_tag.document_id").
 					Joins("LEFT JOIN tags ON document_tag.tag_id = tags.id").
 					Where("documents.name LIKE ? OR documents.author LIKE ? OR documents.book_isbn LIKE ? OR documents.introduction LIKE ? OR tags.tag_name LIKE ?",
-						"%"+key+"%", "%"+key+"%", "%"+key+"%", "%"+key+"%", "%"+key+"%").
+								"%"+key+"%", "%"+key+"%", "%"+key+"%", "%"+key+"%", "%"+key+"%").
 					Group("documents.id") // 避免因为JOIN导致的重复记录
 			}
 		} else {
@@ -135,7 +135,7 @@ func SearchDocumentsByParams(request dto.SearchDocumentDTO) ([]models.Document, 
 			query = query.Joins("LEFT JOIN document_tag ON documents.id = document_tag.document_id").
 				Joins("LEFT JOIN tags ON document_tag.tag_id = tags.id").
 				Where("documents.name LIKE ? OR documents.author LIKE ? OR documents.book_isbn LIKE ? OR documents.introduction LIKE ? OR tags.tag_name LIKE ?",
-					"%"+key+"%", "%"+key+"%", "%"+key+"%", "%"+key+"%", "%"+key+"%").
+							"%"+key+"%", "%"+key+"%", "%"+key+"%", "%"+key+"%", "%"+key+"%").
 				Group("documents.id") // 避免因为JOIN导致的重复记录
 		}
 	}
