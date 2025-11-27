@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/antidote-kt/SSE_Library-back/config"
 	"github.com/antidote-kt/SSE_Library-back/constant"
@@ -96,7 +97,8 @@ func CollectDocument(c *gin.Context) {
 		// 创建新的收藏记录
 		favorite := models.Favorite{
 			UserID:     userClaims.UserID,
-			DocumentID: request.DocumentID,
+			SourceID:   request.DocumentID,
+			SourceType: constant.DocumentType,
 		}
 		// 将收藏记录插入数据库
 		if err := tx.Create(&favorite).Error; err != nil {
@@ -260,4 +262,64 @@ func WithdrawCollection(c *gin.Context) {
 
 	// 返回成功响应，携带用户剩余收藏的所有文档列表
 	response.SuccessWithData(c, responseData, constant.UnfavoriteSuccessMsg)
+}
+
+func CheckFavoriteByUserIdAndDocumentId(c *gin.Context) {
+	// 获取请求参数
+	userIdStr := c.Query("userId")
+	userId, err := strconv.ParseUint(userIdStr, 10, 64)
+	if err != nil {
+		response.Fail(c, http.StatusBadRequest, nil, constant.UserIDFormatError)
+		return
+	}
+
+	documentIdStr := c.Query("documentId")
+	documentId, err := strconv.ParseUint(documentIdStr, 10, 64)
+	if err != nil {
+		response.Fail(c, http.StatusBadRequest, nil, constant.MsgDocumentIDFormatError)
+		return
+	}
+
+	// 从上下文中获取用户JWT声明信息
+	claims, exists := c.Get(constant.UserClaims)
+	if !exists {
+		// 如果无法获取用户信息，返回401未授权错误
+		response.Fail(c, http.StatusUnauthorized, nil, constant.GetUserInfoFailed)
+		return
+	}
+	// 将接口类型转换为具体的声明结构体
+	userClaims := claims.(*utils.MyClaims)
+
+	// 验证请求的用户ID是否与JWT中的用户ID一致（防止越权操作）
+	if userClaims.UserID != userId {
+		response.Fail(c, http.StatusUnauthorized, nil, constant.NonSelf)
+		return
+	}
+
+	// 验证用户是否存在
+	_, err = dao.GetUserByID(userId)
+	if err != nil {
+		// 如果用户不存在，返回404错误
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			response.Fail(c, http.StatusNotFound, nil, constant.UserNotExist)
+			return
+		}
+		// 其他数据库错误，返回500错误
+		response.Fail(c, http.StatusInternalServerError, nil, constant.DatabaseError)
+		return
+	}
+
+	// 调用 DAO 层函数检查用户是否收藏了文档
+	isFavorite, err := dao.CheckFavoriteExist(userId, documentId)
+	if err != nil {
+		response.Fail(c, http.StatusInternalServerError, nil, constant.DatabaseError)
+		return
+	}
+
+	// 构造返回数据
+	result := gin.H{
+		"judgement": isFavorite,
+	}
+	// 返回成功响应
+	response.Success(c, result, constant.FavoriteGetSuccess)
 }

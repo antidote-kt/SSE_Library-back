@@ -21,6 +21,7 @@ const (
 	FavoriteStatusCheckFailed = "检查收藏状态失败"
 	FavoriteCreateFailed      = "创建收藏记录失败"
 	FavoriteDeleteFailed      = "删除收藏记录失败"
+	FavoriteGetSuccess        = "获取收藏记录成功"
 )
 
 // 用户上传文档相关常量

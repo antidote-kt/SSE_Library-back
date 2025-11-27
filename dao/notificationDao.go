@@ -1,6 +1,8 @@
 package dao
 
 import (
+	"errors"
+
 	"github.com/antidote-kt/SSE_Library-back/config"
 	"github.com/antidote-kt/SSE_Library-back/models"
 	"gorm.io/gorm"
@@ -21,7 +23,23 @@ func GetNotificationsByUserId(userId uint64) ([]models.Notification, error) {
 func MarkNotificationAsRead(notificationID uint64, userID uint64) error {
 	db := config.GetDB()
 
-	// 更新指定的通知为已读状态，确保该通知属于指定用户
+	// 先查询当前通知的状态
+	var notification models.Notification
+	err := db.Where("id = ? AND receiver_id = ?", notificationID, userID).First(&notification).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return gorm.ErrRecordNotFound
+		}
+		return err
+	}
+
+	// 检查是否已经是已读状态
+	if notification.IsRead {
+		// 如果已经是已读状态，不需要再更新
+		return nil
+	}
+
+	// 如果不是已读状态，才进行更新
 	result := db.Model(&models.Notification{}).
 		Where("id = ? AND receiver_id = ?", notificationID, userID).
 		Update("is_read", true)

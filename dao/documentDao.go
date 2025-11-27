@@ -98,26 +98,6 @@ func DeleteDocumentWithTx(tx *gorm.DB, document models.Document) error {
 	return nil
 }
 
-func GetDocumentByCondition(condition string) ([]models.Document, error) {
-	db := config.GetDB()
-	var documents []models.Document
-
-	query := db.Model(&models.Document{})
-
-	if condition != "" {
-		// Search across multiple fields: Name, Author, BookISBN, Introduction
-		query = query.Where("name LIKE ? OR author LIKE ? OR book_isbn LIKE ? OR introduction LIKE ?",
-			"%"+condition+"%", "%"+condition+"%", "%"+condition+"%", "%"+condition+"%")
-	}
-
-	err := query.Find(&documents).Error
-	if err != nil {
-		return nil, err
-	}
-
-	return documents, nil
-}
-
 // SearchDocumentsByParams 根据参数搜索文档，先用key搜索，再进行其他参数过滤
 func SearchDocumentsByParams(request dto.SearchDocumentDTO) ([]models.Document, error) {
 	db := config.GetDB()
@@ -147,7 +127,7 @@ func SearchDocumentsByParams(request dto.SearchDocumentDTO) ([]models.Document, 
 				query = query.Joins("LEFT JOIN document_tag ON documents.id = document_tag.document_id").
 					Joins("LEFT JOIN tags ON document_tag.tag_id = tags.id").
 					Where("documents.name LIKE ? OR documents.author LIKE ? OR documents.book_isbn LIKE ? OR documents.introduction LIKE ? OR tags.tag_name LIKE ?",
-								"%"+key+"%", "%"+key+"%", "%"+key+"%", "%"+key+"%", "%"+key+"%").
+						"%"+key+"%", "%"+key+"%", "%"+key+"%", "%"+key+"%", "%"+key+"%").
 					Group("documents.id") // 避免因为JOIN导致的重复记录
 			}
 		} else {
@@ -155,7 +135,7 @@ func SearchDocumentsByParams(request dto.SearchDocumentDTO) ([]models.Document, 
 			query = query.Joins("LEFT JOIN document_tag ON documents.id = document_tag.document_id").
 				Joins("LEFT JOIN tags ON document_tag.tag_id = tags.id").
 				Where("documents.name LIKE ? OR documents.author LIKE ? OR documents.book_isbn LIKE ? OR documents.introduction LIKE ? OR tags.tag_name LIKE ?",
-							"%"+key+"%", "%"+key+"%", "%"+key+"%", "%"+key+"%", "%"+key+"%").
+					"%"+key+"%", "%"+key+"%", "%"+key+"%", "%"+key+"%", "%"+key+"%").
 				Group("documents.id") // 避免因为JOIN导致的重复记录
 		}
 	}
