@@ -30,6 +30,8 @@ func SetupRouter() *gin.Engine {
 		authed.PUT("/document", controllers.ModifyDocument)              // 文件信息修改（上传该文件的用户才能修改）
 		authed.GET("/chat/messages", controllers.GetChatMessages)        //获取聊天记录
 		authed.GET("/chat/search", controllers.SearchChatMessages)       //搜索聊天记录
+		authed.GET("/getReminder", controllers.GetNotification)          //获取提醒
+		authed.POST("/markReminderRead", controllers.MarkNotification)   //标记提醒为已读
 		authed.GET("/category", controllers.GetCategoriesAndCourses)     // 获取分类和课程
 		authed.GET("/searchcat", controllers.SearchCategoriesAndCourses) // 搜索分类和课程
 		authed.PUT("/category", controllers.ModifyCategory)              // 修改分类或课程
@@ -41,15 +43,16 @@ func SetupRouter() *gin.Engine {
 		// 用户相关操作
 		userApi := authed.Group("/user")
 		{
-			userApi.POST("/document", controllers.UploadDocument)           // 文档上传（需要解析用户id，逻辑绑定到文档表）
-			userApi.DELETE("/withdrawUpload", controllers.WithdrawUpload)   // 文件撤回（谁上传谁能撤回）
-			userApi.POST("/collect", controllers.CollectDocument)           // 收藏资料
-			userApi.DELETE("/collect", controllers.WithdrawCollection)      // 取消收藏
-			userApi.GET("/document", controllers.GetUserUploadDocument)     //用户查看上传文件列表
-			userApi.POST("/:document_id/comments", controllers.PostComment) // 发表评论
-			userApi.GET("/:user_id/comments", controllers.GetUserComments)  // 用户查看自己的评论
-			userApi.DELETE("/comment", controllers.DeleteUserComment)       // 用户删除自己的评论（需要认证）
-			userApi.GET("/hotCategories", controllers.GetHotCategories)     // 获取热门分类
+			userApi.POST("/document", controllers.UploadDocument)                         // 文档上传（需要解析用户id，逻辑绑定到文档表）
+			userApi.DELETE("/withdrawUpload", controllers.WithdrawUpload)                 // 文件撤回（谁上传谁能撤回）
+			userApi.POST("/collect", controllers.CollectDocument)                         // 收藏资料
+			userApi.DELETE("/collect", controllers.WithdrawCollection)                    // 取消收藏
+			userApi.GET("/document", controllers.GetUserUploadDocument)                   //用户查看上传文件列表
+			userApi.POST("/:document_id/comments", controllers.PostComment)               // 发表评论
+			userApi.GET("/:user_id/comments", controllers.GetUserComments)                // 用户查看自己的评论
+			userApi.DELETE("/comment", controllers.DeleteUserComment)                     // 用户删除自己的评论（需要认证）
+			userApi.GET("/hotCategories", controllers.GetHotCategories)                   // 获取热门分类
+			userApi.GET("/checkFavorite", controllers.CheckFavoriteByUserIdAndDocumentId) // 获取收藏列表
 		}
 
 		// 管理员相关操作

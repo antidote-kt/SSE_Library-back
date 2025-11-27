@@ -14,7 +14,7 @@ func CheckFavoriteExist(userID, documentID uint64) (bool, error) {
 	db := config.GetDB()
 	var favorite models.Favorite
 
-	err := db.Where("user_id = ? AND document_id = ?", userID, documentID).First(&favorite).Error
+	err := db.Where("user_id = ? AND source_id = ? And source_type = ?", userID, documentID, constant.DocumentType).First(&favorite).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return false, nil
@@ -40,7 +40,7 @@ func GetFavoriteDocumentsByUserID(userID uint64) ([]models.Document, error) {
 	for _, favorite := range favorites {
 		var document models.Document
 		// 获取收藏的文档
-		err := db.Where("id = ?", favorite.DocumentID).First(&document).Error
+		err := db.Where("id = ?", favorite.SourceID).First(&document).Error
 		if err != nil {
 			continue // 跳过不存在的文档
 		}

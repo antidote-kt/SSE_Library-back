@@ -29,14 +29,27 @@ type UploaderResponse struct {
 }
 
 type DocumentDetailResponse struct {
-	InfoBrief    InfoBriefResponse `json:"infoBrief"`
-	BookISBN     string            `json:"bookISBN"`
-	Author       string            `json:"author"`
-	Uploader     UploaderResponse  `json:"uploader"`
-	Cover        string            `json:"cover"`
-	Tags         []string          `json:"tags"`
-	Introduction string            `json:"introduction"`
-	CreateYear   string            `json:"createYear"`
+	InfoBrief    InfoBriefResponse   `json:"infoBrief"`
+	BookISBN     string              `json:"bookISBN"`
+	Author       string              `json:"author"`
+	Uploader     UploaderResponse    `json:"uploader"`
+	Cover        string              `json:"cover"`
+	Tags         []string            `json:"tags"`
+	Introduction string              `json:"introduction"`
+	CreateYear   string              `json:"createYear"`
+	PostList     []PostBriefResponse `json:"postList"`
+}
+type PostBriefResponse struct {
+	CommentCount uint32 `json:"commentCount"`
+	Content      string `json:"content"`
+	LikeCount    uint32 `json:"likeCount"`
+	PostID       uint64 `json:"postId"`
+	ReadCount    uint32 `json:"readCount"`
+	SenderAvatar string `json:"senderAvatar"`
+	SenderID     uint64 `json:"senderId"`
+	SenderName   string `json:"senderName"`
+	SendTime     string `json:"sendTime"`
+	Title        string `json:"title"`
 }
 
 // buildDocumentDetailResponse 构建文档详情响应对象
@@ -89,6 +102,16 @@ func BuildDocumentDetailResponse(document models.Document) (DocumentDetailRespon
 		Role:       uploader.Role,
 	}
 
+	// 获取与文档相关的帖子列表
+	posts, err := dao.GetPostsByDocumentID(document.ID)
+	if err != nil {
+		// 如果获取帖子失败，记录错误但不中断整个流程，使用空切片
+		posts = []models.Post{}
+	}
+
+	// 构建帖子简要响应列表
+	postBriefList := BuildPostBriefResponseList(posts)
+
 	// 构建 DocumentDetailResponse
 	docDetailResponse := DocumentDetailResponse{
 		InfoBrief:    infoBrief,
@@ -99,10 +122,50 @@ func BuildDocumentDetailResponse(document models.Document) (DocumentDetailRespon
 		Tags:         tagNames,
 		Introduction: document.Introduction,
 		CreateYear:   document.CreateYear,
+		PostList:     postBriefList,
 	}
 
 	return docDetailResponse, nil
 }
+
+// BuildPostBriefResponse 构建帖子简要响应对象
+func BuildPostBriefResponse(post models.Post) PostBriefResponse {
+	// 获取发帖用户的信息
+	user, err := dao.GetUserByID(post.SenderID)
+	senderName := ""
+	senderAvatar := ""
+	if err != nil {
+		// 如果获取用户信息失败，使用默认值
+		senderName = "未知用户"
+		senderAvatar = ""
+	} else {
+		senderName = user.Username
+		senderAvatar = utils.GetFileURL(user.Avatar)
+	}
+
+	return PostBriefResponse{
+		PostID:       post.ID,
+		SenderID:     post.SenderID,
+		SenderName:   senderName,
+		SenderAvatar: senderAvatar,
+		Title:        post.Title,
+		Content:      post.Content,
+		CommentCount: post.CommentCount,
+		ReadCount:    post.ReadCount,
+		LikeCount:    post.LikeCount,
+		SendTime:     post.CreatedAt.Format("2006-01-02 15:04:05"),
+	}
+}
+
+// BuildPostBriefResponseList 构建帖子简要响应对象列表
+func BuildPostBriefResponseList(posts []models.Post) []PostBriefResponse {
+	postBriefResponses := make([]PostBriefResponse, len(posts))
+	for i, post := range posts {
+		postBriefResponses[i] = BuildPostBriefResponse(post)
+	}
+	return postBriefResponses
+}
+
 func BuildInfoBriefResponse(document models.Document) (InfoBriefResponse, error) {
 	category, err := dao.GetCategoryByID(document.CategoryID)
 	if err != nil {

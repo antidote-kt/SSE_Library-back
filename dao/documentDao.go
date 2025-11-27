@@ -98,26 +98,6 @@ func DeleteDocumentWithTx(tx *gorm.DB, document models.Document) error {
 	return nil
 }
 
-func GetDocumentByCondition(condition string) ([]models.Document, error) {
-	db := config.GetDB()
-	var documents []models.Document
-
-	query := db.Model(&models.Document{})
-
-	if condition != "" {
-		// Search across multiple fields: Name, Author, BookISBN, Introduction
-		query = query.Where("name LIKE ? OR author LIKE ? OR book_isbn LIKE ? OR introduction LIKE ?",
-			"%"+condition+"%", "%"+condition+"%", "%"+condition+"%", "%"+condition+"%")
-	}
-
-	err := query.Find(&documents).Error
-	if err != nil {
-		return nil, err
-	}
-
-	return documents, nil
-}
-
 // SearchDocumentsByParams 根据参数搜索文档，先用key搜索，再进行其他参数过滤
 func SearchDocumentsByParams(request dto.SearchDocumentDTO) ([]models.Document, error) {
 	db := config.GetDB()
