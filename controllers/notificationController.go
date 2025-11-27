@@ -7,6 +7,7 @@ import (
 
 	"github.com/antidote-kt/SSE_Library-back/constant"
 	"github.com/antidote-kt/SSE_Library-back/dao"
+	"github.com/antidote-kt/SSE_Library-back/dto"
 	"github.com/antidote-kt/SSE_Library-back/response"
 	"github.com/antidote-kt/SSE_Library-back/utils"
 	"github.com/gin-gonic/gin"
@@ -65,14 +66,9 @@ func GetNotification(c *gin.Context) {
 	response.SuccessWithData(c, notificationResponses, constant.GetNotificationSuccess)
 }
 
-// MarkNotificationDTO 请求体结构体
-type MarkNotificationDTO struct {
-	ReminderID uint64 `json:"reminderId"`
-}
-
 func MarkNotification(c *gin.Context) {
 	// 声明标记通知已读请求参数结构体
-	var request MarkNotificationDTO
+	var request dto.MarkNotificationDTO
 
 	// 解析JSON请求参数
 	if err := c.ShouldBindJSON(&request); err != nil {
