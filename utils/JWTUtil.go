@@ -3,6 +3,8 @@ package utils
 import (
 	"errors"
 	"time"
+
+	"github.com/antidote-kt/SSE_Library-back/constant"
 )
 
 import (
@@ -50,11 +52,11 @@ func ParseToken(tokenString string) (*MyClaims, error) {
 		return mySecret, nil
 	})
 	if err != nil {
-		return nil, err
+		return nil, errors.New(constant.TokenParseFailed)
 	}
 	// 对token对象中的Claim进行类型断言
 	if claims, ok := token.Claims.(*MyClaims); ok && token.Valid { // 校验token
 		return claims, nil
 	}
-	return nil, errors.New("无效的Token")
+	return nil, errors.New(constant.InvalidToken)
 }

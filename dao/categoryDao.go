@@ -83,6 +83,12 @@ func GetRecentCategories(days int) ([]models.Category, error) {
 	return categories, err
 }
 
+// CreateCategory 创建新的分类/课程
+func CreateCategory(category *models.Category) error {
+	db := config.GetDB()
+	return db.Create(category).Error
+}
+
 // DeleteCategoryByName 根据名称删除分类（软删除）
 func DeleteCategoryByName(name string) error {
 	db := config.GetDB()
@@ -95,4 +101,5 @@ func UpdateCategory(category *models.Category) error {
 	db := config.GetDB()
 	err := db.Save(category).Error
 	return err
+
 }

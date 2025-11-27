@@ -89,7 +89,7 @@ func UploadMainFile(file *multipart.FileHeader, category string) (string, error)
 	}
 	fileReader, err := file.Open()
 	if err != nil {
-		return "", fmt.Errorf("打开文件失败")
+		return "", fmt.Errorf(constant.DocumentOpenFailed)
 	}
 	defer fileReader.Close()
 
@@ -98,7 +98,7 @@ func UploadMainFile(file *multipart.FileHeader, category string) (string, error)
 	filePath := fmt.Sprintf("files/%s/%s", category, secureFilename)
 	err = UploadFile(filePath, fileReader)
 	if err != nil {
-		return "", fmt.Errorf("文件上传失败，请稍后重试")
+		return "", fmt.Errorf(constant.DocumentUploadFailed)
 	}
 
 	return filePath, nil
@@ -112,7 +112,7 @@ func UploadCoverImage(cover *multipart.FileHeader, category string) (string, err
 
 	coverFile, err := cover.Open()
 	if err != nil {
-		return "", fmt.Errorf("打开封面文件失败")
+		return "", fmt.Errorf(constant.OpenDocumentCoverFailed)
 	}
 	defer coverFile.Close()
 
@@ -121,7 +121,7 @@ func UploadCoverImage(cover *multipart.FileHeader, category string) (string, err
 	coverPath := fmt.Sprintf("covers/%s/%s", category, secureFilename)
 	err = UploadFile(coverPath, coverFile)
 	if err != nil {
-		return "", fmt.Errorf("封面图片上传失败")
+		return "", fmt.Errorf(constant.UploadCoverImageFailed)
 	}
 
 	return coverPath, nil
@@ -130,12 +130,12 @@ func UploadCoverImage(cover *multipart.FileHeader, category string) (string, err
 // 上传用户头像
 func UploadAvatar(avatar *multipart.FileHeader) (string, error) {
 	if avatar == nil || avatar.Size == 0 {
-		return "", fmt.Errorf("用户没有上传头像")
+		return "", fmt.Errorf(constant.NonUserAvatar)
 	}
 
 	avatarFile, err := avatar.Open()
 	if err != nil {
-		return "", fmt.Errorf("打开头像文件失败")
+		return "", fmt.Errorf(constant.OpenAvatarFailed)
 	}
 	defer avatarFile.Close()
 
@@ -144,7 +144,7 @@ func UploadAvatar(avatar *multipart.FileHeader) (string, error) {
 	avatarPath := fmt.Sprintf("avatars/%s", secureFilename)
 	err = UploadFile(avatarPath, avatarFile)
 	if err != nil {
-		return "", fmt.Errorf("头像上传失败")
+		return "", fmt.Errorf(constant.UploadAvatarFailed)
 	}
 
 	return avatarPath, nil

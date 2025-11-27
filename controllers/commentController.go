@@ -135,7 +135,7 @@ func PostComment(c *gin.Context) {
 	}
 	var request dto.PostCommentDTO
 	if err := c.ShouldBindJSON(&request); err != nil {
-		response.Fail(c, constant.StatusBadRequest, gin.H{"error": err.Error()}, constant.MsgParameterError)
+		response.Fail(c, constant.StatusBadRequest, nil, constant.MsgParameterError)
 		return
 	}
 

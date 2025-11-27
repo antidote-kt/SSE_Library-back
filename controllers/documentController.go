@@ -90,7 +90,7 @@ func ModifyDocument(c *gin.Context) {
 		// 上传新封面图片到指定分类目录
 		document.Cover, err = utils.UploadCoverImage(request.Cover, category.Name)
 		if err != nil {
-			response.Fail(c, http.StatusInternalServerError, nil, constant.CoverUploadFailed)
+			response.Fail(c, http.StatusInternalServerError, nil, err.Error())
 			return
 		}
 	}
@@ -102,7 +102,7 @@ func ModifyDocument(c *gin.Context) {
 			// 删除旧文件
 			err := utils.DeleteFile(document.URL)
 			if err != nil {
-				response.Fail(c, http.StatusInternalServerError, nil, constant.OldFileDeleteFailed)
+				response.Fail(c, http.StatusInternalServerError, nil, constant.OldDocumentDeleteFailed)
 				return
 			}
 		}
@@ -113,7 +113,7 @@ func ModifyDocument(c *gin.Context) {
 		} else if request.File != nil {
 			document.URL, err = utils.UploadMainFile(request.File, category.Name)
 			if err != nil {
-				response.Fail(c, http.StatusInternalServerError, nil, constant.FileUploadFailed)
+				response.Fail(c, http.StatusInternalServerError, nil, err.Error())
 				return
 			}
 		}

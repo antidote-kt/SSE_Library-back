@@ -58,7 +58,7 @@ func UploadDocument(c *gin.Context) {
 		fileURL, err = utils.UploadMainFile(req.File, category.Name)
 		if err != nil {
 			// 文件上传失败，返回错误响应
-			response.Fail(c, http.StatusInternalServerError, nil, constant.FileUploadFailed)
+			response.Fail(c, http.StatusInternalServerError, nil, err.Error())
 			return
 		}
 	} else if req.VideoURL != nil {

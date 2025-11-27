@@ -100,14 +100,14 @@ func CollectDocument(c *gin.Context) {
 		}
 		// 将收藏记录插入数据库
 		if err := tx.Create(&favorite).Error; err != nil {
-			return fmt.Errorf("%v: %v", constant.FavoriteCreateFailed, err)
+			return fmt.Errorf(constant.FavoriteCreateFailed)
 		}
 
 		// 更新文档的收藏数（增加1）
 		document.Collections++
 		// 保存更新后的文档信息到数据库
 		if err := tx.Save(&document).Error; err != nil {
-			return fmt.Errorf("%v: %v", constant.CollectionUpdateFailed, err)
+			return fmt.Errorf(constant.CollectionUpdateFailed)
 		}
 
 		return nil

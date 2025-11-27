@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/antidote-kt/SSE_Library-back/constant"
 	"github.com/antidote-kt/SSE_Library-back/dao"
 	"github.com/antidote-kt/SSE_Library-back/dto"
 	"github.com/antidote-kt/SSE_Library-back/response"
@@ -17,7 +18,7 @@ func SendVerificationCode(c *gin.Context) {
 
 	// 1. 绑定并验证参数
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(c, http.StatusBadRequest, nil, "参数格式错误: "+err.Error())
+		response.Fail(c, http.StatusBadRequest, nil, constant.ParamParseError+err.Error())
 		return
 	}
 
@@ -26,19 +27,19 @@ func SendVerificationCode(c *gin.Context) {
 		// 如果是用于重置密码，需要确保邮箱已经注册用户
 		_, err := dao.GetUserByEmail(req.Email)
 		if err != nil {
-			response.Fail(c, http.StatusNotFound, nil, "该邮箱未注册")
+			response.Fail(c, http.StatusNotFound, nil, constant.UnauthorizedEmail)
 			return
 		}
 	} else if req.Usage == "register" {
 		// 如果是注册，需要检查邮箱是否已被占用
 		_, err := dao.GetUserByEmail(req.Email)
 		if err == nil {
-			response.Fail(c, http.StatusUnprocessableEntity, nil, "邮箱已被注册")
+			response.Fail(c, http.StatusUnprocessableEntity, nil, constant.EmailHasBeenUsed)
 			return
 		}
 
 	} else {
-		response.Fail(c, http.StatusBadRequest, nil, "无效的验证码业务")
+		response.Fail(c, http.StatusBadRequest, nil, constant.InvalidTransaction)
 		return
 	}
 
@@ -48,7 +49,7 @@ func SendVerificationCode(c *gin.Context) {
 	// 4. 将验证码存入Redis
 	err := utils.StoreVerificationCode(req.Email, req.Usage, code)
 	if err != nil {
-		response.Fail(c, http.StatusInternalServerError, nil, "存储验证码失败")
+		response.Fail(c, http.StatusInternalServerError, nil, constant.VerificationCodeStoreError)
 		return
 	}
 
@@ -58,11 +59,14 @@ func SendVerificationCode(c *gin.Context) {
 		if err != nil {
 			// 记录发送失败的日志，不影响给前端的成功响应
 			log.Printf("异步发送验证码到 %s 失败: %v", req.Email, err)
+			// 给前端返回常量错误响应（而非err的具体错误信息）
+			response.Fail(c, http.StatusInternalServerError, nil, constant.VerificationCodeSendFailed)
+			return
 		}
 	}()
 
 	// 6. 返回成功响应
 	response.Success(c, gin.H{
 		"success": true,
-	}, "验证码已发送至您的邮箱，请注意查收")
+	}, constant.VCodeSendSuccess)
 }
