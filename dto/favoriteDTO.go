@@ -1,6 +1,7 @@
 package dto
 
 type FavoriteDTO struct {
-	DocumentID uint64 `json:"documentId"`
-	UserID     uint64 `json:"userId"`
+	SourceID uint64 `json:"sourceId"`
+	UserID   uint64 `json:"userId"`
+	Type     string `json:"type"`
 }

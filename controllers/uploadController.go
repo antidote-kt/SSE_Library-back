@@ -95,14 +95,14 @@ func UploadDocument(c *gin.Context) {
 
 	// 构建文档对象
 	document := models.Document{
-		Type:        req.Type,                     // 文档类型
-		Name:        req.Name,                     // 文档名称
-		UploaderID:  uploader.ID,                  // 上传者ID
-		CategoryID:  category.ID,                  // 分类ID
-		Status:      constant.DocumentStatusAudit, // 文档状态（默认为审核中）
-		URL:         fileURL,                      // 文件URL
-		ReadCounts:  0,                            // 阅读次数（初始为0）
-		Collections: 0,                            // 收藏次数（初始为0）
+		Type:        req.Type,                       // 文档类型
+		Name:        req.Name,                       // 文档名称
+		UploaderID:  uploader.ID,                    // 上传者ID
+		CategoryID:  category.ID,                    // 分类ID
+		Status:      constant.DocumentStatusPending, // 文档状态（默认为审核中）
+		URL:         fileURL,                        // 文件URL
+		ReadCounts:  0,                              // 阅读次数（初始为0）
+		Collections: 0,                              // 收藏次数（初始为0）
 	}
 
 	// 处理可选字段
