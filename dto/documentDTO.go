@@ -77,3 +77,9 @@ type DocumentBriefDTO struct {
 	Content     string `json:"content"`
 	CreateTime  string `json:"createTime"`
 }
+
+// GetDocumentListDTO 获取文档列表请求参数
+type GetDocumentListDTO struct {
+	IsSuggest  *bool   `form:"isSuggest"`  // 是否为推荐模式
+	CategoryID *uint64 `form:"categoryId"` // 分类ID (可选，空则返回全部)
+}
