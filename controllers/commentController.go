@@ -427,3 +427,69 @@ func DeleteUserComment(c *gin.Context) {
 		"list": buildCommentResponseList(remainingComments, categoryNames),
 	})
 }
+
+// GetSingleComment 获取单条评论
+// GET /comment/{commentId}
+func GetSingleComment(c *gin.Context) {
+	commentIDStr := c.Param("commentId")
+	commentID, err := strconv.ParseUint(commentIDStr, 10, 64)
+	if err != nil {
+		response.Fail(c, constant.StatusBadRequest, nil, constant.MsgCommentIDFormatError)
+		return
+	}
+
+	// 获取评论详情（包含 User 和 Document）
+	comment, err := dao.GetCommentDetailByID(commentID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			response.Fail(c, constant.StatusNotFound, nil, constant.MsgCommentNotFound)
+			return
+		}
+		response.Fail(c, constant.StatusInternalServerError, nil, constant.MsgDatabaseQueryFailed)
+		return
+	}
+
+	// 构建 commenter 信息
+	commenter := gin.H{
+		"userId":     comment.UserID,
+		"username":   "",
+		"userAvatar": "",
+		"status":     "",
+		"createTime": "",
+		"email":      "",
+		"role":       "",
+	}
+	if comment.User != nil {
+		commenter["userId"] = comment.UserID
+		commenter["username"] = comment.User.Username
+		commenter["userAvatar"] = comment.User.Avatar
+		commenter["status"] = comment.User.Status
+		commenter["createTime"] = formatTimeForResponse(comment.User.CreatedAt)
+		commenter["email"] = comment.User.Email
+		commenter["role"] = comment.User.Role
+	}
+
+	// 构建 sourceData 信息
+	var sourceData interface{} = nil
+	if comment.Document != nil {
+		sourceData = gin.H{
+			"sourceId":   comment.DocumentID,
+			"name":       comment.Document.Name,
+			"sourceType": "document",
+		}
+	}
+
+	// 构建响应（顶层字段，不是嵌套在 data 中）
+	responseData := gin.H{
+		"code":      constant.StatusOK,
+		"message":   constant.MsgGetSingleCommentSuccess,
+		"commentId": comment.ID,
+		"parentId":  comment.ParentID,
+		"commenter": commenter,
+		"createdAt": formatTimeForResponse(comment.CreatedAt),
+		"content":   comment.Content,
+		"sourceData": sourceData,
+	}
+
+	c.JSON(constant.StatusOK, responseData)
+}
