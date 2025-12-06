@@ -3,6 +3,7 @@ package middlewares
 import (
 	"net/http"
 
+	"github.com/antidote-kt/SSE_Library-back/constant"
 	"github.com/antidote-kt/SSE_Library-back/response"
 	"github.com/antidote-kt/SSE_Library-back/utils"
 	"github.com/gin-gonic/gin"
@@ -15,7 +16,7 @@ func AdminCheckMiddleware() gin.HandlerFunc {
 		claims, exists := c.Get("user_claims")
 		if !exists {
 			// 这种情况理论上不应该发生，因为AuthMiddleware会先拦截
-			response.Fail(c, http.StatusUnauthorized, nil, "用户未登录")
+			response.Fail(c, http.StatusUnauthorized, nil, constant.UserNonLogin)
 			c.Abort()
 			return
 		}
@@ -23,7 +24,7 @@ func AdminCheckMiddleware() gin.HandlerFunc {
 		// 2. 类型断言，获取自定义的Claims
 		userClaims, ok := claims.(*utils.MyClaims)
 		if !ok {
-			response.Fail(c, http.StatusUnauthorized, nil, "无效的用户凭证")
+			response.Fail(c, http.StatusUnauthorized, nil, constant.InvalidToken)
 			c.Abort()
 			return
 		}
@@ -31,7 +32,7 @@ func AdminCheckMiddleware() gin.HandlerFunc {
 		// 3. 核心：检查用户角色是否为 "admin"
 		if userClaims.Role != "admin" {
 			// 如果不是管理员，返回 403 Forbidden 错误
-			response.Fail(c, http.StatusForbidden, nil, "无管理员权限，禁止访问")
+			response.Fail(c, http.StatusForbidden, nil, constant.NoPermission)
 			c.Abort()
 			return
 		}

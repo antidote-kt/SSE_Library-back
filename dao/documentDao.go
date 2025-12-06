@@ -32,6 +32,20 @@ func GetDocumentsByUploaderID(userID uint64) ([]models.Document, error) {
 	return documents, nil
 }
 
+// GetDocumentsByPostID 获取指定帖子关联的文档列表
+func GetDocumentsByPostID(postID uint64) ([]models.Document, error) {
+	db := config.GetDB()
+	var documents []models.Document
+	err := db.Model(&models.PostDocument{}).
+		Joins("LEFT JOIN documents ON documents.id = post_documents.document_id").
+		Where("post_documents.post_id = ?", postID).
+		Find(&documents).Error
+	if err != nil {
+		return nil, err
+	}
+	return documents, nil
+}
+
 func CreateDocumentWithTx(tx *gorm.DB, document models.Document, tagNames []string) (models.Document, error) {
 	var tags []models.Tag
 	for _, tagName := range tagNames {
@@ -98,26 +112,6 @@ func DeleteDocumentWithTx(tx *gorm.DB, document models.Document) error {
 	return nil
 }
 
-func GetDocumentByCondition(condition string) ([]models.Document, error) {
-	db := config.GetDB()
-	var documents []models.Document
-
-	query := db.Model(&models.Document{})
-
-	if condition != "" {
-		// Search across multiple fields: Name, Author, BookISBN, Introduction
-		query = query.Where("name LIKE ? OR author LIKE ? OR book_isbn LIKE ? OR introduction LIKE ?",
-			"%"+condition+"%", "%"+condition+"%", "%"+condition+"%", "%"+condition+"%")
-	}
-
-	err := query.Find(&documents).Error
-	if err != nil {
-		return nil, err
-	}
-
-	return documents, nil
-}
-
 // SearchDocumentsByParams 根据参数搜索文档，先用key搜索，再进行其他参数过滤
 func SearchDocumentsByParams(request dto.SearchDocumentDTO) ([]models.Document, error) {
 	db := config.GetDB()
@@ -180,5 +174,36 @@ func SearchDocumentsByParams(request dto.SearchDocumentDTO) ([]models.Document, 
 		return nil, err
 	}
 
+	return documents, nil
+}
+
+// GetDocumentList 获取文档列表
+// isSuggest: 是否为推荐模式 (true: 返回阅读量前10的文档)
+// categoryID: 分类ID查找特定分类的所有文档 (nil: 默认推荐模式)
+func GetDocumentList(isSuggest bool, categoryID *uint64) ([]models.Document, error) {
+	db := config.GetDB()
+	var documents []models.Document
+	query := db.Model(&models.Document{})
+
+	// 基础条件：只返回状态为Open的文档，且未删除
+	query = query.Where("status = ? AND deleted_at IS NULL", constant.DocumentStatusOpen)
+
+	// 1. 处理分类筛选 (无论是推荐模式还是普通模式，分类筛选如果传了都应该生效)
+	// 如果不希望在推荐模式下筛选分类，可以将这段移到 else 分支里
+	if categoryID != nil && *categoryID != 0 {
+		query = query.Where("category_id = ?", *categoryID)
+	} else if isSuggest {
+		// 2. 如果没传分类，那么看是否为推荐模式
+		// 推荐模式：返回阅读量 (read_counts) 前 10 的文档
+		query = query.Order("read_counts DESC").Limit(10)
+	} else {
+		// 既没传分类id也不是推荐模式，则返回全部文档
+		query = query.Order("created_at DESC")
+	}
+
+	err := query.Find(&documents).Error
+	if err != nil {
+		return nil, err
+	}
 	return documents, nil
 }

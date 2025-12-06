@@ -45,3 +45,32 @@ func SearchChatMessagesByUser(userID uint64, searchKey string) ([]models.Message
 	}
 	return messages, nil
 }
+
+// CreateMessage 创建一条新消息
+func CreateMessage(message *models.Message) error {
+	db := config.GetDB()
+	return db.Create(message).Error
+}
+
+// GetLastMessageBySessionID 获取会话的最后一条消息
+func GetLastMessageBySessionID(sessionID uint64) (models.Message, error) {
+	db := config.GetDB()
+	var message models.Message
+	// 按时间倒序取第一条
+	err := db.Where("session_id = ?", sessionID).Order("created_at DESC").First(&message).Error
+	if err != nil {
+		return message, err
+	}
+	return message, nil
+}
+
+// CountUnreadMessages 统计用户在某会话中的未读消息数
+// 逻辑：统计该会话中，发送者不是我(receiverID)，且状态不是'read'的消息
+func CountUnreadMessages(sessionID, receiverID uint64) (int64, error) {
+	db := config.GetDB()
+	var count int64
+	err := db.Model(&models.Message{}).
+		Where("session_id = ? AND sender_id != ? AND status != ?", sessionID, receiverID, "read").
+		Count(&count).Error
+	return count, err
+}

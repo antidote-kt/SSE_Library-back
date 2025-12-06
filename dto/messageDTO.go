@@ -1,0 +1,8 @@
+package dto
+
+// SendMessageDTO 发送消息接口的请求参数
+type SendMessageDTO struct {
+	SessionID  *uint64 `form:"sessionId"`                  // 会话ID (可选)
+	ReceiverID *uint64 `form:"receiverId"`                 // 接收者ID (可选，如果没有SessionID，则必须有此字段)
+	Content    string  `form:"content" binding:"required"` // 消息内容(不能发送空消息)
+}
