@@ -54,6 +54,16 @@ func RefreshCategoryHeat() {
 		return
 	}
 
+	// 如果没有最近更新的分类，则获取所有未删除的分类
+	if len(categories) == 0 {
+		allCategories, err := dao.GetAllCategories()
+		if err != nil {
+			log.Println("获取所有分类失败:", err)
+			return
+		}
+		categories = allCategories
+	}
+
 	// 清空之前的ZSet
 	rdb.Del(ctx, HotCategoriesKey)
 
@@ -119,6 +129,9 @@ func GetHotCategories(c *gin.Context) {
 	ctx := context.Background()
 	rdb := config.GetRedisClient()
 
+	// 初始化响应数组，确保即使没有数据也返回空数组而不是 null
+	categoryResponses := make([]*CategoryResponse, 0)
+
 	// 检查Redis中是否有数据，如果没有则刷新
 	exists, err := rdb.Exists(ctx, HotCategoriesKey).Result()
 	if err != nil || exists == 0 {
@@ -128,12 +141,13 @@ func GetHotCategories(c *gin.Context) {
 	// 从Redis ZSet中获取热度最高的分类（降序）
 	hotCategoriesJSON, err := rdb.ZRevRange(ctx, HotCategoriesKey, 0, int64(count-1)).Result()
 	if err != nil {
-		response.Fail(c, constant.StatusInternalServerError, nil, constant.MsgDatabaseQueryFailed)
+		// Redis 查询失败，返回空数组而不是错误
+		log.Println("Redis查询失败:", err)
+		response.SuccessWithData(c, categoryResponses, constant.MsgGetHotCategoriesSuccess)
 		return
 	}
 
 	// 解析JSON并构建完整的响应
-	var categoryResponses []*CategoryResponse
 	for _, jsonStr := range hotCategoriesJSON {
 		var heatInfo CategoryHeatInfo
 		if err := json.Unmarshal([]byte(jsonStr), &heatInfo); err != nil {

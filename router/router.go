@@ -22,6 +22,7 @@ func SetupRouter() *gin.Engine {
 	authed.Use(middlewares.AuthMiddleware())
 	{
 		// 通用接口
+		authed.GET("/comment/:commentId", controllers.GetSingleComment)  // 获取单条评论
 		authed.GET("/:document_id/comments", controllers.GetComments)    // 获取对某书的评论列表
 		authed.GET("/user/:user_id", controllers.GetProfile)             //查看个人主页
 		authed.PUT("/user/:user_id", controllers.ModifyInfo)             //修改个人资料

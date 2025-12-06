@@ -172,6 +172,7 @@ const (
 	MsgGetCommentListSuccess  = "获取评论列表成功"
 	MsgGetAllCommentsSuccess  = "获取所有评论成功"
 	MsgGetUserCommentsSuccess = "获取用户评论成功"
+	MsgGetSingleCommentSuccess = "获取单条评论成功"
 )
 
 // 聊天相关常量
