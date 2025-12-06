@@ -17,10 +17,62 @@ type PostDetailResponse struct {
 	Title        string              `json:"title"`
 	Content      string              `json:"content"`
 	CommentCount uint32              `json:"commentCount"`
-	ReadCount    uint32              `json:"readCount"`
 	LikeCount    uint32              `json:"likeCount"`
 	SendTime     string              `json:"sendTime"`
 	Documents    []InfoBriefResponse `json:"documents"`
+	CollectCount uint32              `json:"collectCount"`
+}
+
+// postBrief
+type PostBriefResponse struct {
+	CommentCount uint32 `json:"commentCount"`
+	Content      string `json:"content"`
+	LikeCount    uint32 `json:"likeCount"`
+	PostID       uint64 `json:"postId"`
+	CollectCount uint32 `json:"collectCount"`
+	SenderAvatar string `json:"senderAvatar"`
+	SenderID     uint64 `json:"senderId"`
+	SenderName   string `json:"senderName"`
+	SendTime     string `json:"sendTime"`
+	Title        string `json:"title"`
+}
+
+// BuildPostBriefResponse 构建帖子简要响应对象
+func BuildPostBriefResponse(post models.Post) PostBriefResponse {
+	// 获取发帖用户的信息
+	user, err := dao.GetUserByID(post.SenderID)
+	senderName := ""
+	senderAvatar := ""
+	if err != nil {
+		// 如果获取用户信息失败，使用默认值
+		senderName = "未知用户"
+		senderAvatar = ""
+	} else {
+		senderName = user.Username
+		senderAvatar = utils.GetFileURL(user.Avatar)
+	}
+
+	return PostBriefResponse{
+		PostID:       post.ID,
+		SenderID:     post.SenderID,
+		SenderName:   senderName,
+		SenderAvatar: senderAvatar,
+		Title:        post.Title,
+		Content:      post.Content,
+		CommentCount: post.CommentCount,
+		CollectCount: post.Collections,
+		LikeCount:    post.LikeCount,
+		SendTime:     post.CreatedAt.Format("2006-01-02 15:04:05"),
+	}
+}
+
+// BuildPostBriefResponseList 构建帖子简要响应对象列表
+func BuildPostBriefResponseList(posts []models.Post) []PostBriefResponse {
+	postBriefResponses := make([]PostBriefResponse, len(posts))
+	for i, post := range posts {
+		postBriefResponses[i] = BuildPostBriefResponse(post)
+	}
+	return postBriefResponses
 }
 
 // BuildPostDetailResponse 构建单个帖子详情响应
@@ -54,7 +106,7 @@ func BuildPostDetailResponse(post models.Post, documents []models.Document) Post
 		Title:        post.Title,
 		Content:      post.Content,
 		CommentCount: post.CommentCount,
-		ReadCount:    post.ReadCount,
+		CollectCount: post.Collections,
 		LikeCount:    post.LikeCount,
 		SendTime:     post.CreatedAt.Format("2006-01-02 15:04:05"),
 		Documents:    InfoBriefs,

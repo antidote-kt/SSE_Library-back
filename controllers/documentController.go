@@ -118,7 +118,7 @@ func ModifyDocument(c *gin.Context) {
 			}
 		}
 		// 重新上传文件后需要重新审核
-		document.Status = constant.DocumentStatusAudit
+		document.Status = constant.DocumentStatusPending
 	}
 
 	// 使用事务确保数据一致性：更新文档信息和标签映射
