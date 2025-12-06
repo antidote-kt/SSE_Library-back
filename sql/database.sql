@@ -154,12 +154,11 @@ CREATE TABLE messages (
 CREATE TABLE posts (
                        id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '帖子唯一标识ID (对应 postId)',
                        sender_id BIGINT UNSIGNED NOT NULL COMMENT '发帖人ID (对应 senderId)',
-                       sender_name VARCHAR(200) NOT NULL COMMENT '发帖人用户名',
-                       sender_avatar VARCHAR(500) COMMENT '发帖人头像文件路径，存储头像图片的URL或文件路径',
                        title VARCHAR(200) NOT NULL COMMENT '帖子标题',
                        content TEXT NOT NULL COMMENT '帖子内容',
                        read_count INT UNSIGNED DEFAULT 0 COMMENT '阅读量',
                        like_count INT UNSIGNED DEFAULT 0 COMMENT '点赞量',
+                       collections INT UNSIGNED DEFAULT 0 COMMENT '收藏量',
                        comment_count INT UNSIGNED DEFAULT 0 COMMENT '评论量',
                        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '发布时间 (对应 sendTime)',
                        deleted_at TIMESTAMP NULL DEFAULT NULL COMMENT '软删除标记',
@@ -172,6 +171,7 @@ CREATE TABLE post_documents (
                                 post_id BIGINT UNSIGNED NOT NULL COMMENT '帖子ID',
                                 document_id BIGINT UNSIGNED NOT NULL COMMENT '文档ID',
                                 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                deleted_at TIMESTAMP NULL DEFAULT NULL COMMENT '软删除标记',
                                 PRIMARY KEY (id),
                                 UNIQUE KEY uk_post_document (post_id, document_id), -- 防止同一个文档在同一个帖子中重复添加
                                 KEY idx_document_id (document_id)

@@ -52,6 +52,7 @@ const (
 	NotAllowWithdrawOthers      = "不允许撤回其他人的文档"
 	NotAllowWithdraw            = "文档不在审核中，不允许撤回"
 	DocumentObtain              = "文档获取成功"
+	DocumentsObtain             = "文档列表获取成功"
 	DocumentTagCreateFailed     = "创建文档标签关联失败"
 	DocumentTagGetFailed        = "文档标签关联查询失败"
 	DocumentIDLack              = "文档ID不能为空"
@@ -201,4 +202,13 @@ const (
 	NotificationNotExist   = "通知不存在"
 	MarkReadFailed         = "标记已读失败"
 	MarkReadSuccess        = "标记已读成功"
+)
+
+// 帖子相关常量
+const (
+	CreatePostFailed         = "发帖失败"
+	CreatePostSuccess        = "发帖成功"
+	CreatePostDocumentFailed = "创建帖子文档关联失败"
+	GetPostDetailSuccess     = "获取帖子详情成功"
+	PostsObtain              = "帖子列表获取成功"
 )

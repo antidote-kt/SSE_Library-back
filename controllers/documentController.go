@@ -260,3 +260,48 @@ func SearchDocument(c *gin.Context) {
 	// 返回成功响应，携带搜索结果列表
 	response.SuccessWithData(c, results, constant.DocumentObtain)
 }
+
+// GetDocumentList 获取文档列表接口 (支持推荐和分类筛选)
+// GET /documents
+func GetDocumentList(c *gin.Context) {
+	var req dto.GetDocumentListDTO
+
+	// 1. 绑定查询参数
+	if err := c.ShouldBindQuery(&req); err != nil {
+		response.Fail(c, http.StatusBadRequest, nil, constant.ParamParseError)
+		return
+	}
+
+	// 2. 处理布尔值指针 (默认为 false)
+	isSuggest := false
+	if req.IsSuggest != nil {
+		isSuggest = *req.IsSuggest
+	}
+
+	// 3. 调用DAO获取文档列表
+	documents, err := dao.GetDocumentList(isSuggest, req.CategoryID)
+	if err != nil {
+		response.Fail(c, http.StatusInternalServerError, nil, constant.DatabaseError)
+		return
+	}
+
+	// 5. 构建响应列表
+	var results []response.DocumentDetailResponse
+	for _, doc := range documents {
+		// 复用已有的详情构建函数，它已经包含了PostList的构建逻辑
+		resp, err := response.BuildDocumentDetailResponse(doc)
+		if err != nil {
+			// 如果某条数据构建失败（如关联数据缺失），记录日志并跳过，确保列表整体可用
+			continue
+		}
+		results = append(results, resp)
+	}
+
+	// 确保返回空数组而不是null
+	if results == nil {
+		results = make([]response.DocumentDetailResponse, 0)
+	}
+
+	// 6. 返回成功响应
+	response.SuccessWithData(c, results, constant.DocumentsObtain)
+}

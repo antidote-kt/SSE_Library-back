@@ -1,6 +1,8 @@
 package response
 
 import (
+	"strconv"
+
 	"github.com/antidote-kt/SSE_Library-back/models"
 	"github.com/antidote-kt/SSE_Library-back/utils"
 )
@@ -18,10 +20,10 @@ type UserBriefResponse struct {
 
 // HomepageResponse 是用户主页接口返回的完整数据结构
 type HomepageResponse struct {
-	UserBrief      UserBriefResponse        `json:"userBrief"`
-	Password       string                   `json:"password"`
-	CollectionList []DocumentDetailResponse `json:"collectionList"`
-	HistoryList    []DocumentDetailResponse `json:"historyList"`
+	UserBrief      UserBriefResponse   `json:"userBrief"`
+	Password       string              `json:"password"`
+	CollectionList []InfoBriefResponse `json:"collectionList"`
+	HistoryList    []InfoBriefResponse `json:"historyList"`
 }
 
 func BuildHomepageResponse(user models.User, collectionList, historyList []models.Document) (HomepageResponse, error) {
@@ -37,33 +39,47 @@ func BuildHomepageResponse(user models.User, collectionList, historyList []model
 	}
 
 	// 2. 构建收藏列表 (CollectionList)
-	var collectionResponses []DocumentDetailResponse
+	var collectionResponses []InfoBriefResponse
 	for _, doc := range collectionList {
-		// 调用已有的 BuildDocumentDetailResponse 函数处理单个文档
-		docResponse, err := BuildDocumentDetailResponse(doc)
-		if err != nil {
-			return HomepageResponse{}, err
+		// 将单个文档信息转换为 InfoBriefResponse 格式
+		docBrief := InfoBriefResponse{
+			Name:        doc.Name,
+			DocumentID:  doc.ID,
+			Type:        doc.Type,
+			UploadTime:  doc.CreatedAt.Format("2006-01-02 15:04:05"),
+			Status:      doc.Status,
+			Category:    strconv.FormatUint(doc.CategoryID, 10),
+			Collections: doc.Collections,
+			ReadCounts:  doc.ReadCounts,
+			URL:         utils.GetResponseFileURL(doc),
 		}
-		collectionResponses = append(collectionResponses, docResponse)
+		collectionResponses = append(collectionResponses, docBrief)
 	}
 	// 确保切片不为 nil，返回空数组 [] 而不是 null
 	if collectionResponses == nil {
-		collectionResponses = make([]DocumentDetailResponse, 0)
+		collectionResponses = make([]InfoBriefResponse, 0)
 	}
 
 	// 3. 构建历史记录列表 (HistoryList)
-	var historyResponses []DocumentDetailResponse
+	var historyResponses []InfoBriefResponse
 	for _, doc := range historyList {
-		// 调用已有的 BuildDocumentDetailResponse 函数处理单个文档
-		docResponse, err := BuildDocumentDetailResponse(doc)
-		if err != nil {
-			return HomepageResponse{}, err
+		// 将单个文档信息转换为 InfoBriefResponse 格式
+		docBrief := InfoBriefResponse{
+			Name:        doc.Name,
+			DocumentID:  doc.ID,
+			Type:        doc.Type,
+			UploadTime:  doc.CreatedAt.Format("2006-01-02 15:04:05"),
+			Status:      doc.Status,
+			Category:    strconv.FormatUint(doc.CategoryID, 10),
+			Collections: doc.Collections,
+			ReadCounts:  doc.ReadCounts,
+			URL:         utils.GetResponseFileURL(doc),
 		}
-		historyResponses = append(historyResponses, docResponse)
+		historyResponses = append(historyResponses, docBrief)
 	}
 	// 确保切片不为 nil
 	if historyResponses == nil {
-		historyResponses = make([]DocumentDetailResponse, 0)
+		historyResponses = make([]InfoBriefResponse, 0)
 	}
 
 	// 4. 组装最终的 HomepageResponse
