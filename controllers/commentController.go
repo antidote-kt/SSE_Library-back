@@ -21,37 +21,7 @@ func formatTimeForResponse(t time.Time) string {
 	return t.Format("2006-01-02 15:04:05")
 }
 
-func loadCategoryNames(comments []models.Comment) (map[uint64]string, error) {
-	categoryIDSet := make(map[uint64]struct{})
-	for _, comment := range comments {
-		if comment.Document != nil && comment.Document.CategoryID != 0 {
-			categoryIDSet[comment.Document.CategoryID] = struct{}{}
-		}
-	}
-
-	if len(categoryIDSet) == 0 {
-		return map[uint64]string{}, nil
-	}
-
-	ids := make([]uint64, 0, len(categoryIDSet))
-	for id := range categoryIDSet {
-		ids = append(ids, id)
-	}
-
-	categories, err := dao.GetCategoriesByIDs(ids)
-	if err != nil {
-		return nil, err
-	}
-
-	categoryNames := make(map[uint64]string, len(categories))
-	for _, category := range categories {
-		categoryNames[category.ID] = category.Name
-	}
-
-	return categoryNames, nil
-}
-
-func buildCommentResponse(comment models.Comment, categoryNames map[uint64]string) dto.CommentResponseDTO {
+func buildCommentResponse(comment models.Comment) dto.CommentResponseDTO {
 	commenter := dto.UserBriefDTO{
 		UserID: comment.UserID,
 	}
@@ -64,47 +34,44 @@ func buildCommentResponse(comment models.Comment, categoryNames map[uint64]strin
 		commenter.Role = comment.User.Role
 	}
 
-	document := dto.DocumentBriefDTO{
-		DocumentID: comment.DocumentID,
-	}
-	if comment.Document != nil {
-		document.Name = comment.Document.Name
-		document.Type = comment.Document.Type
-		document.UploadTime = formatTimeForResponse(comment.Document.CreatedAt)
-		document.Status = comment.Document.Status
-		document.Collections = comment.Document.Collections
-		document.ReadCounts = comment.Document.ReadCounts
-		document.URL = comment.Document.URL
-		document.Content = comment.Document.Introduction
-		document.CreateTime = formatTimeForResponse(comment.Document.CreatedAt)
-		if comment.Document.CategoryID != 0 {
-			if categoryName, ok := categoryNames[comment.Document.CategoryID]; ok {
-				document.Category = categoryName
-				document.Course = categoryName
-			}
+	var sourceData *dto.SourceDataDTO = nil
+	if comment.SourceType == "document" && comment.Document != nil {
+		sourceData = &dto.SourceDataDTO{
+			SourceID:   comment.SourceID,
+			Name:       comment.Document.Name,
+			SourceType: "document",
+		}
+	} else if comment.SourceType == "post" && comment.Post != nil {
+		sourceData = &dto.SourceDataDTO{
+			SourceID:   comment.SourceID,
+			Name:       comment.Post.Title,
+			SourceType: "post",
 		}
 	}
 
 	return dto.CommentResponseDTO{
-		CommentID: comment.ID,
-		ParentID:  comment.ParentID,
-		Commenter: commenter,
-		Document:  document,
-		CreatedAt: formatTimeForResponse(comment.CreatedAt),
-		Content:   comment.Content,
+		CommentID:  comment.ID,
+		ParentID:   comment.ParentID,
+		SourceData: sourceData,
+		Commenter:  commenter,
+		CreatedAt:  formatTimeForResponse(comment.CreatedAt),
+		Content:    comment.Content,
 	}
 }
 
-func buildCommentResponseList(comments []models.Comment, categoryNames map[uint64]string) []dto.CommentResponseDTO {
-	var commentList []dto.CommentResponseDTO
-	for _, commentData := range comments {
-		commentList = append(commentList, buildCommentResponse(commentData, categoryNames))
+func buildCommentResponseList(comments []models.Comment) []dto.CommentResponseDTO {
+	commentList := make([]dto.CommentResponseDTO, 0, len(comments))
+	for _, comment := range comments {
+		commentList = append(commentList, buildCommentResponse(comment))
 	}
 	return commentList
 }
 
 func getCommentIDFromQuery(c *gin.Context) (string, error) {
-	commentIDStr := c.Query("comment_id")
+	commentIDStr := c.Query("commentId")
+	if commentIDStr == "" {
+		commentIDStr = c.Query("comment_id")
+	}
 	if commentIDStr == "" {
 		commentIDStr = c.Query("comment_Id")
 	}
@@ -114,28 +81,17 @@ func getCommentIDFromQuery(c *gin.Context) (string, error) {
 	return commentIDStr, nil
 }
 
-// POST /api/books/{document_id}/comments
+// POST /user/comments
 func PostComment(c *gin.Context) {
-	documentIDStr := c.Param("document_id")
-	documentID, err := strconv.ParseUint(documentIDStr, 10, 64)
-	if err != nil {
-		response.Fail(c, constant.StatusBadRequest, nil, constant.MsgDocumentIDFormatError)
-		return
-	}
-
-	// 验证文档是否存在
-	_, err = dao.GetDocumentByID(documentID)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			response.Fail(c, constant.StatusNotFound, nil, constant.MsgRecordNotFound)
-			return
-		}
-		response.Fail(c, constant.StatusInternalServerError, nil, constant.MsgDatabaseQueryFailed)
-		return
-	}
 	var request dto.PostCommentDTO
 	if err := c.ShouldBindJSON(&request); err != nil {
 		response.Fail(c, constant.StatusBadRequest, nil, constant.MsgParameterError)
+		return
+	}
+
+	// 验证 sourceData
+	if request.SourceData == nil {
+		response.Fail(c, constant.StatusBadRequest, nil, "sourceData 不能为空")
 		return
 	}
 
@@ -145,12 +101,13 @@ func PostComment(c *gin.Context) {
 		return
 	}
 
-	if request.Author.UserID == 0 {
+	// 验证 commenter
+	if request.Commenter.UserID == 0 {
 		response.Fail(c, constant.StatusBadRequest, nil, constant.MsgUserIDEmpty)
 		return
 	}
 
-	user, err := dao.GetUserByID(uint64(request.Author.UserID))
+	user, err := dao.GetUserByID(request.Commenter.UserID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			response.Fail(c, constant.StatusUnauthorized, nil, constant.MsgUnauthorized)
@@ -160,8 +117,38 @@ func PostComment(c *gin.Context) {
 		return
 	}
 
-	if request.Author.UserName != user.Username {
+	if request.Commenter.Username != user.Username {
 		response.Fail(c, constant.StatusBadRequest, nil, constant.MsgUserInfoMismatch)
+		return
+	}
+
+	// 验证 sourceData 对应的文档或帖子是否存在
+	sourceID := request.SourceData.SourceID
+	sourceType := request.SourceData.SourceType
+
+	switch sourceType {
+	case "document":
+		_, err = dao.GetDocumentByID(sourceID)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				response.Fail(c, constant.StatusNotFound, nil, constant.MsgRecordNotFound)
+				return
+			}
+			response.Fail(c, constant.StatusInternalServerError, nil, constant.MsgDatabaseQueryFailed)
+			return
+		}
+	case "post":
+		_, err = dao.GetPostByID(sourceID)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				response.Fail(c, constant.StatusNotFound, nil, constant.MsgRecordNotFound)
+				return
+			}
+			response.Fail(c, constant.StatusInternalServerError, nil, constant.MsgDatabaseQueryFailed)
+			return
+		}
+	default:
+		response.Fail(c, constant.StatusBadRequest, nil, "sourceType 必须是 document 或 post")
 		return
 	}
 
@@ -183,14 +170,15 @@ func PostComment(c *gin.Context) {
 		parentComment, err := dao.GetCommentByID(*request.ParentID)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				response.Fail(c, constant.StatusNotFound, nil, constant.MsgParentCommentNotFound)
+				response.Fail(c, constant.StatusBadRequest, nil, constant.MsgParentCommentNotFound)
 				return
 			}
 			response.Fail(c, constant.StatusInternalServerError, nil, constant.MsgDatabaseQueryFailed)
 			return
 		}
 
-		if parentComment.DocumentID != documentID {
+		// 验证父评论是否在同一个 source 下
+		if parentComment.SourceID != sourceID || parentComment.SourceType != sourceType {
 			response.Fail(c, constant.StatusBadRequest, nil, constant.MsgParentCommentNotInDocument)
 			return
 		}
@@ -198,9 +186,10 @@ func PostComment(c *gin.Context) {
 
 	// 创建评论
 	comment := &models.Comment{
-		UserID:     uint64(request.Author.UserID),
+		UserID:     request.Commenter.UserID,
 		Content:    request.Content,
-		DocumentID: documentID,
+		SourceID:   sourceID,
+		SourceType: sourceType,
 		ParentID:   request.ParentID,
 		CreatedAt:  parsedTime,
 	}
@@ -212,57 +201,72 @@ func PostComment(c *gin.Context) {
 	}
 
 	// 获取更新后的评论列表
-	comments, err := dao.GetCommentWithUserAndDocument(documentID)
+	comments, err := dao.GetCommentWithUserAndDocument(sourceID, sourceType)
 	if err != nil {
 		response.Fail(c, constant.StatusInternalServerError, nil, constant.MsgGetCommentListFailed)
 		return
 	}
 
-	categoryNames, err := loadCategoryNames(comments)
-	if err != nil {
-		response.Fail(c, constant.StatusInternalServerError, nil, constant.MsgDatabaseQueryFailed)
-		return
-	}
+	commentList := buildCommentResponseList(comments)
 
-	response.Response(c, constant.StatusCreated, constant.CodeSuccess, constant.MsgCommentPostSuccess, gin.H{
-		"list": buildCommentResponseList(comments, categoryNames),
+	c.JSON(constant.StatusCreated, gin.H{
+		"code":    constant.StatusCreated,
+		"message": constant.MsgCommentPostSuccess,
+		"data":    commentList,
 	})
 }
 
-// GET /api/books/{document_id}/comments
+// GET /{sourceType}/{sourceId}/comments
 func GetComments(c *gin.Context) {
-	documentIDStr := c.Param("document_id")
-	documentID, err := strconv.ParseUint(documentIDStr, 10, 64)
-	if err != nil {
-		response.Fail(c, constant.StatusBadRequest, nil, constant.MsgDocumentIDFormatError)
+	sourceType := c.Param("sourceType")
+	sourceIDStr := c.Param("sourceId")
+
+	// 验证 sourceType
+	if sourceType != "document" && sourceType != "post" {
+		response.Fail(c, constant.StatusBadRequest, nil, "sourceType 必须是 document 或 post")
 		return
 	}
 
-	_, err = dao.GetDocumentByID(documentID)
+	sourceID, err := strconv.ParseUint(sourceIDStr, 10, 64)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			response.Fail(c, constant.StatusNotFound, nil, constant.MsgRecordNotFound)
+		response.Fail(c, constant.StatusBadRequest, nil, "sourceId 格式错误")
+		return
+	}
+
+	// 验证 sourceId 对应的文档或帖子是否存在
+	switch sourceType {
+	case "document":
+		_, err = dao.GetDocumentByID(sourceID)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				response.Fail(c, constant.StatusNotFound, nil, constant.MsgRecordNotFound)
+				return
+			}
+			response.Fail(c, constant.StatusInternalServerError, nil, constant.MsgDatabaseQueryFailed)
 			return
 		}
-		response.Fail(c, constant.StatusInternalServerError, nil, constant.MsgDatabaseQueryFailed)
-		return
+	case "post":
+		_, err = dao.GetPostByID(sourceID)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				response.Fail(c, constant.StatusNotFound, nil, constant.MsgRecordNotFound)
+				return
+			}
+			response.Fail(c, constant.StatusInternalServerError, nil, constant.MsgDatabaseQueryFailed)
+			return
+		}
 	}
 
-	comments, err := dao.GetCommentWithUserAndDocument(documentID)
+	// 获取评论列表
+	comments, err := dao.GetCommentWithUserAndDocument(sourceID, sourceType)
 	if err != nil {
 		response.Fail(c, constant.StatusInternalServerError, nil, constant.MsgGetCommentListFailed)
 		return
 	}
 
-	categoryNames, err := loadCategoryNames(comments)
-	if err != nil {
-		response.Fail(c, constant.StatusInternalServerError, nil, constant.MsgDatabaseQueryFailed)
-		return
-	}
+	commentList := buildCommentResponseList(comments)
 
-	response.Response(c, constant.StatusOK, constant.CodeSuccess, constant.MsgGetCommentListSuccess, gin.H{
-		"list": buildCommentResponseList(comments, categoryNames),
-	})
+	response.SuccessWithData(c, commentList, constant.MsgGetCommentListSuccess)
 }
 
 // GET /api/admin/comments
@@ -273,15 +277,9 @@ func GetAllComments(c *gin.Context) {
 		return
 	}
 
-	categoryNames, err := loadCategoryNames(comments)
-	if err != nil {
-		response.Fail(c, constant.StatusInternalServerError, nil, constant.MsgDatabaseQueryFailed)
-		return
-	}
+	commentList := buildCommentResponseList(comments)
 
-	response.Response(c, constant.StatusOK, constant.CodeSuccess, constant.MsgGetAllCommentsSuccess, gin.H{
-		"list": buildCommentResponseList(comments, categoryNames),
-	})
+	response.SuccessWithData(c, commentList, constant.MsgGetAllCommentsSuccess)
 }
 
 // DELETE /api/admin/comment
@@ -342,34 +340,19 @@ func GetUserComments(c *gin.Context) {
 		return
 	}
 
-	categoryNames, err := loadCategoryNames(comments)
-	if err != nil {
-		response.Fail(c, constant.StatusInternalServerError, nil, constant.MsgDatabaseQueryFailed)
-		return
-	}
+	commentList := buildCommentResponseList(comments)
 
-	response.Response(c, constant.StatusOK, constant.CodeSuccess, constant.MsgGetUserCommentsSuccess, gin.H{
-		"list": buildCommentResponseList(comments, categoryNames),
-	})
+	response.SuccessWithData(c, commentList, constant.MsgGetUserCommentsSuccess)
 }
 
-// DELETE /user/deleteComment
+// DELETE /user/comment
 func DeleteUserComment(c *gin.Context) {
+	// 查询参数：userId 和 commentId
 	userIDStr := c.Query("userId")
-	if userIDStr == "" {
-		response.Fail(c, constant.StatusBadRequest, nil, constant.MsgUserIDEmpty)
-		return
-	}
+	commentIDStr := c.Query("commentId")
 
-	commentIDStr, err := getCommentIDFromQuery(c)
-	if err != nil {
-		response.Fail(c, constant.StatusBadRequest, nil, err.Error())
-		return
-	}
-
-	userID, err := strconv.ParseUint(userIDStr, 10, 64)
-	if err != nil {
-		response.Fail(c, constant.StatusBadRequest, nil, constant.MsgUserIDFormatError)
+	if commentIDStr == "" {
+		response.Fail(c, constant.StatusBadRequest, nil, constant.MsgCommentIDEmpty)
 		return
 	}
 
@@ -379,53 +362,52 @@ func DeleteUserComment(c *gin.Context) {
 		return
 	}
 
-	_, err = dao.GetUserByID(userID)
+	// 获取评论信息
+	comment, err := dao.GetCommentDetailByID(commentID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			response.Fail(c, constant.StatusNotFound, nil, constant.MsgUserNotFound)
+			response.Fail(c, constant.StatusNotFound, nil, constant.MsgCommentNotFound)
 			return
 		}
 		response.Fail(c, constant.StatusInternalServerError, nil, constant.MsgDatabaseQueryFailed)
 		return
 	}
 
-	deletedCommentInfo, err := dao.GetCommentDetailByID(commentID)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+	// 如果提供了 userId，验证评论是否属于该用户
+	if userIDStr != "" {
+		userID, err := strconv.ParseUint(userIDStr, 10, 64)
+		if err != nil {
+			response.Fail(c, constant.StatusBadRequest, nil, constant.MsgUserIDFormatError)
+			return
+		}
+
+		// 验证用户是否存在
+		_, err = dao.GetUserByID(userID)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				response.Fail(c, constant.StatusNotFound, nil, constant.MsgUserNotFound)
+				return
+			}
+			response.Fail(c, constant.StatusInternalServerError, nil, constant.MsgDatabaseQueryFailed)
+			return
+		}
+
+		// 验证评论是否属于该用户
+		if comment.UserID != userID {
 			response.Fail(c, constant.StatusNotFound, nil, constant.MsgCommentNotFoundOrNoAccess)
 			return
 		}
-		response.Fail(c, constant.StatusInternalServerError, nil, constant.MsgDatabaseQueryFailed)
-		return
 	}
 
-	if deletedCommentInfo.UserID != userID {
-		response.Fail(c, constant.StatusNotFound, nil, constant.MsgCommentNotFoundOrNoAccess)
-		return
-	}
-
-	err = dao.DeleteUserComment(userID, commentID)
+	// 执行删除
+	err = dao.DeleteUserComment(comment.UserID, commentID)
 	if err != nil {
 		response.Fail(c, constant.StatusInternalServerError, nil, constant.MsgCommentDeleteFailed)
 		return
 	}
 
-	// 获取删除后用户在该文档下的所有剩余评论
-	remainingComments, err := dao.GetUserCommentsWithUserAndDocument(userID)
-	if err != nil {
-		response.Fail(c, constant.StatusInternalServerError, nil, constant.MsgGetCommentListFailed)
-		return
-	}
-
-	categoryNames, err := loadCategoryNames(remainingComments)
-	if err != nil {
-		response.Fail(c, constant.StatusInternalServerError, nil, constant.MsgDatabaseQueryFailed)
-		return
-	}
-
-	response.Response(c, constant.StatusOK, constant.CodeSuccess, constant.MsgCommentDeleteSuccess, gin.H{
-		"list": buildCommentResponseList(remainingComments, categoryNames),
-	})
+	// 成功后不返回评论列表，只返回成功消息
+	response.Response(c, constant.StatusOK, constant.CodeSuccess, constant.MsgCommentDeleteSuccess, gin.H{})
 }
 
 // GetSingleComment 获取单条评论
@@ -438,7 +420,7 @@ func GetSingleComment(c *gin.Context) {
 		return
 	}
 
-	// 获取评论详情（包含 User 和 Document）
+	// 获取评论详情
 	comment, err := dao.GetCommentDetailByID(commentID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -449,46 +431,18 @@ func GetSingleComment(c *gin.Context) {
 		return
 	}
 
-	// 构建 commenter 信息
-	commenter := gin.H{
-		"userId":     comment.UserID,
-		"username":   "",
-		"userAvatar": "",
-		"status":     "",
-		"createTime": "",
-		"email":      "",
-		"role":       "",
-	}
-	if comment.User != nil {
-		commenter["userId"] = comment.UserID
-		commenter["username"] = comment.User.Username
-		commenter["userAvatar"] = comment.User.Avatar
-		commenter["status"] = comment.User.Status
-		commenter["createTime"] = formatTimeForResponse(comment.User.CreatedAt)
-		commenter["email"] = comment.User.Email
-		commenter["role"] = comment.User.Role
-	}
+	// 使用 buildCommentResponse 构建响应
+	commentResponse := buildCommentResponse(*comment)
 
-	// 构建 sourceData 信息
-	var sourceData interface{} = nil
-	if comment.Document != nil {
-		sourceData = gin.H{
-			"sourceId":   comment.DocumentID,
-			"name":       comment.Document.Name,
-			"sourceType": "document",
-		}
-	}
-
-	// 构建响应（顶层字段，不是嵌套在 data 中）
 	responseData := gin.H{
-		"code":      constant.StatusOK,
-		"message":   constant.MsgGetSingleCommentSuccess,
-		"commentId": comment.ID,
-		"parentId":  comment.ParentID,
-		"commenter": commenter,
-		"createdAt": formatTimeForResponse(comment.CreatedAt),
-		"content":   comment.Content,
-		"sourceData": sourceData,
+		"code":       constant.StatusOK,
+		"message":    constant.MsgGetSingleCommentSuccess,
+		"commentId":  commentResponse.CommentID,
+		"parentId":   commentResponse.ParentID,
+		"sourceData": commentResponse.SourceData,
+		"commenter":  commentResponse.Commenter,
+		"createdAt":  commentResponse.CreatedAt,
+		"content":    commentResponse.Content,
 	}
 
 	c.JSON(constant.StatusOK, responseData)

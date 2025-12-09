@@ -22,28 +22,28 @@ func SetupRouter() *gin.Engine {
 	authed.Use(middlewares.AuthMiddleware())
 	{
 		// 通用接口
-		authed.GET("/comment/:commentId", controllers.GetSingleComment)  // 获取单条评论
-		authed.GET("/:document_id/comments", controllers.GetComments)    // 获取对某书的评论列表
-		authed.GET("/user/:user_id", controllers.GetProfile)             //查看个人主页
-		authed.PUT("/user/:user_id", controllers.ModifyInfo)             //修改个人资料
-		authed.GET("/document/:id", controllers.GetDocumentByID)         // 获取文档详情
-		authed.GET("/searchdoc", controllers.SearchDocument)             //搜索文档
-		authed.GET("/documents", controllers.GetDocumentList)            // 获取文档列表
-		authed.PUT("/document", controllers.ModifyDocument)              // 文件信息修改（上传该文件的用户才能修改）
-		authed.GET("/chat/messages", controllers.GetChatMessages)        //获取聊天记录
-		authed.GET("/chat/search", controllers.SearchChatMessages)       //搜索聊天记录
-		authed.GET("/getReminder", controllers.GetNotification)          //获取提醒
-		authed.POST("/markReminderRead", controllers.MarkNotification)   //标记提醒为已读
-		authed.GET("/category", controllers.GetCategoriesAndCourses)     // 获取分类和课程
-		authed.GET("/searchcat", controllers.SearchCategoriesAndCourses) // 搜索分类和课程
-		authed.PUT("/category", controllers.ModifyCategory)              // 修改分类或课程
-		authed.DELETE("/category", controllers.DeleteCategory)           // 删除分类或课程
-		authed.POST("/category", controllers.AddCategory)                // 添加分类
-		authed.POST("/chat/message", controllers.SendMessage)            // 发送消息
-		authed.GET("/chat/sessions", controllers.GetSessionList)         // 获取当前用户的所有会话列表
-		authed.POST("/post", controllers.CreatePost)                     // 发帖
-		authed.GET("/getPosts", controllers.GetPostList)                 // 获取帖子列表
-		authed.GET("/post/:post_id", controllers.GetPostDetail)          // 获取帖子详情
+		authed.GET("/comment/:commentId", controllers.GetSingleComment)        // 获取单条评论
+		authed.GET("/:sourceType/:sourceId/comments", controllers.GetComments) // 获取某文档/帖子的评论
+		authed.GET("/user/:user_id", controllers.GetProfile)                   //查看个人主页
+		authed.PUT("/user/:user_id", controllers.ModifyInfo)                   //修改个人资料
+		authed.GET("/document/:id", controllers.GetDocumentByID)               // 获取文档详情
+		authed.GET("/searchdoc", controllers.SearchDocument)                   //搜索文档
+		authed.GET("/documents", controllers.GetDocumentList)                  // 获取文档列表
+		authed.PUT("/document", controllers.ModifyDocument)                    // 文件信息修改（上传该文件的用户才能修改）
+		authed.GET("/chat/messages", controllers.GetChatMessages)              //获取聊天记录
+		authed.GET("/chat/search", controllers.SearchChatMessages)             //搜索聊天记录
+		authed.GET("/getReminder", controllers.GetNotification)                //获取提醒
+		authed.POST("/markReminderRead", controllers.MarkNotification)         //标记提醒为已读
+		authed.GET("/category", controllers.GetCategoriesAndCourses)           // 获取分类和课程
+		authed.GET("/searchcat", controllers.SearchCategoriesAndCourses)       // 搜索分类和课程
+		authed.PUT("/category", controllers.ModifyCategory)                    // 修改分类或课程
+		authed.DELETE("/category", controllers.DeleteCategory)                 // 删除分类或课程
+		authed.POST("/category", controllers.AddCategory)                      // 添加分类
+		authed.POST("/chat/message", controllers.SendMessage)                  // 发送消息
+		authed.GET("/chat/sessions", controllers.GetSessionList)               // 获取当前用户的所有会话列表
+		authed.POST("/post", controllers.CreatePost)                           // 发帖
+		authed.GET("/getPosts", controllers.GetPostList)                       // 获取帖子列表
+		authed.GET("/post/:post_id", controllers.GetPostDetail)                // 获取帖子详情
 
 		// 用户相关操作
 		userApi := authed.Group("/user")
