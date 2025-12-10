@@ -434,9 +434,8 @@ func GetSingleComment(c *gin.Context) {
 	// 使用 buildCommentResponse 构建响应
 	commentResponse := buildCommentResponse(*comment)
 
-	responseData := gin.H{
-		"code":       constant.StatusOK,
-		"message":    constant.MsgGetSingleCommentSuccess,
+	// 构建符合 API 文档的响应结构（评论数据包装在 data 字段中）
+	commentData := gin.H{
 		"commentId":  commentResponse.CommentID,
 		"parentId":   commentResponse.ParentID,
 		"sourceData": commentResponse.SourceData,
@@ -445,5 +444,5 @@ func GetSingleComment(c *gin.Context) {
 		"content":    commentResponse.Content,
 	}
 
-	c.JSON(constant.StatusOK, responseData)
+	response.SuccessWithData(c, commentData, constant.MsgGetSingleCommentSuccess)
 }
