@@ -31,7 +31,7 @@ func GenerateVerificationCode(length int) string {
 func StoreVerificationCode(email, usage, code string) error {
 	rdb := config.GetRedisClient()
 	key := fmt.Sprintf("verify_code:%s:%s", usage, email) // Key格式: verify_code:业务:邮箱
-	log.Printf("存储验证码，生成的Key: %s", key)                   // 添加日志
+	log.Printf("存储验证码，生成的Key: %s", key)           // 添加日志
 	return rdb.Set(config.Ctx, key, code, VerificationCodeExpireDuration).Err()
 }
 
@@ -39,22 +39,28 @@ func StoreVerificationCode(email, usage, code string) error {
 func CheckVerificationCode(email, usage, codeToCheck string) (bool, error) {
 	rdb := config.GetRedisClient()
 	key := fmt.Sprintf("verify_code:%s:%s", usage, email)
-	log.Printf("校验验证码，查找的Key: %s", key) // 添加日志
+	log.Printf("【DEBUG】开始校验 - 查找Key: [%s]", key)
+
 	storedCode, err := rdb.Get(config.Ctx, key).Result()
 
 	if errors.Is(err, redis.Nil) {
-		// Key不存在，说明验证码过期或从未发送
+		log.Printf("【DEBUG】Key不存在或已过期: [%s]", key)
 		return false, nil // 返回 false, 无错误
 	} else if err != nil {
-		// 其他Redis错误
+		log.Printf("【DEBUG】Redis查询报错: %v", err)
 		return false, err
 	}
 
+	// 打印详细对比日志，注意看输出中是否有空格！
+	log.Printf("【DEBUG】比对值 - Redis存储值: [%s] vs 用户提交值: [%s]", storedCode, codeToCheck)
+
 	// 校验成功后立即删除验证码，防止重复使用
 	if storedCode == codeToCheck {
+		log.Printf("【DEBUG】验证成功，正在删除Key: [%s]", key)
 		rdb.Del(config.Ctx, key) // 忽略删除错误
 		return true, nil
 	}
 
+	log.Printf("【DEBUG】验证失败 - 值不匹配")
 	return false, nil // 验证码不匹配
 }

@@ -38,7 +38,16 @@ func RegisterUser(c *gin.Context) {
 		return
 	}
 
-	// 3.验证邮箱验证码（如果邮箱已注册用户，验证码就无法发出，前端也就无法正常调用此接口，因此我们无需再次额外检查邮箱是否已被注册）
+	// 如果代码能执行到这里，说明 err 恰好是 gorm.ErrRecordNotFound，意味着用户名可用
+	var avatarURL string
+	// 3. 上传用户头像（uploaderAvatar会检查是否为空）
+	avatarURL, err = utils.UploadAvatar(req.Avatar)
+	if err != nil {
+		response.Fail(c, http.StatusInternalServerError, nil, err.Error())
+		return
+	}
+
+	// 4.验证邮箱验证码（如果邮箱已注册用户，验证码就无法发出，前端也就无法正常调用此接口，因此我们无需再次额外检查邮箱是否已被注册）
 	isValidCode, err := utils.CheckVerificationCode(req.Email, "register", req.VerificationCode)
 	if err != nil {
 		response.Fail(c, http.StatusInternalServerError, nil, constant.VerificationCodeCheckError)
@@ -49,23 +58,14 @@ func RegisterUser(c *gin.Context) {
 		return
 	}
 
-	var avatarURL string
-	// 5. 上传用户头像（uploaderAvatar会检查是否为空）
-	avatarURL, err = utils.UploadAvatar(req.Avatar)
-	if err != nil {
-		response.Fail(c, http.StatusInternalServerError, nil, err.Error())
-		return
-	}
-
-	// 如果代码能执行到这里，说明 err 恰好是 gorm.ErrRecordNotFound，意味着用户名可用
-	// 6. 加密密码
+	// 5. 加密密码
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
 		response.Fail(c, http.StatusInternalServerError, nil, constant.PasswordEncryptFailed)
 		return
 	}
 
-	// 7. 创建用户模型
+	// 6. 创建用户模型
 	newUser := models.User{
 		Username: req.Username,
 		Password: string(hashedPassword),
@@ -75,14 +75,14 @@ func RegisterUser(c *gin.Context) {
 		Status:   "active", // 默认状态
 	}
 
-	// 8. 保存到数据库
+	// 7. 保存到数据库
 	createdUser, err := dao.CreateUser(newUser)
 	if err != nil {
 		response.Fail(c, http.StatusInternalServerError, nil, constant.UserRegisterFailed)
 		return
 	}
 
-	// 9.调用response层的结构体组装返回数据
+	// 8.调用response层的结构体组装返回数据
 	userBrief := response.UserBriefResponse{
 		UserID:     createdUser.ID,
 		Username:   createdUser.Username,
@@ -93,7 +93,7 @@ func RegisterUser(c *gin.Context) {
 		Role:       createdUser.Role,
 	}
 
-	// 10. 返回响应
+	// 9. 返回响应
 	response.SuccessWithData(c, userBrief, constant.UserRegisterSuccess)
 }
 
