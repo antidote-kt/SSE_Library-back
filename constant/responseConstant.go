@@ -22,6 +22,7 @@ const (
 	FavoriteCreateFailed      = "创建收藏记录失败"
 	FavoriteDeleteFailed      = "删除收藏记录失败"
 	FavoriteGetSuccess        = "获取收藏记录成功"
+	FavoriteTypeNotAllow      = "不支持的收藏类型"
 )
 
 // 用户上传文档相关常量
@@ -171,6 +172,7 @@ const (
 	MsgGetCommentListSuccess  = "获取评论列表成功"
 	MsgGetAllCommentsSuccess  = "获取所有评论成功"
 	MsgGetUserCommentsSuccess = "获取用户评论成功"
+	MsgGetSingleCommentSuccess = "获取单条评论成功"
 )
 
 // 聊天相关常量
@@ -211,4 +213,6 @@ const (
 	CreatePostDocumentFailed = "创建帖子文档关联失败"
 	GetPostDetailSuccess     = "获取帖子详情成功"
 	PostsObtain              = "帖子列表获取成功"
+	PostNotExist             = "帖子不存在"
+	GetFavoritePostFailed    = "获取收藏帖子列表失败"
 )

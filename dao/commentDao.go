@@ -23,15 +23,15 @@ func GetCommentsByDocumentID(documentID uint64) ([]models.Comment, error) {
 }
 
 func preloadCommentRelations(db *gorm.DB) *gorm.DB {
-	return db.Preload("User").Preload("Document")
+	return db.Preload("User").Preload("Document").Preload("Post")
 }
 
-func GetCommentWithUserAndDocument(documentID uint64) ([]models.Comment, error) {
+func GetCommentWithUserAndDocument(sourceID uint64, sourceType string) ([]models.Comment, error) {
 	db := config.GetDB()
 	var comments []models.Comment
 
 	err := preloadCommentRelations(db).
-		Where("document_id = ? AND deleted_at IS NULL", documentID).
+		Where("source_id = ? AND source_type = ? AND deleted_at IS NULL", sourceID, sourceType).
 		Order("created_at DESC").
 		Find(&comments).Error
 
