@@ -60,7 +60,7 @@ func BuildPostBriefResponse(post models.Post) PostBriefResponse {
 		Title:        post.Title,
 		Content:      post.Content,
 		CommentCount: post.CommentCount,
-		CollectCount: post.Collections,
+		CollectCount: post.CollectCount,
 		LikeCount:    post.LikeCount,
 		SendTime:     post.CreatedAt.Format("2006-01-02 15:04:05"),
 	}
@@ -106,9 +106,49 @@ func BuildPostDetailResponse(post models.Post, documents []models.Document) Post
 		Title:        post.Title,
 		Content:      post.Content,
 		CommentCount: post.CommentCount,
-		CollectCount: post.Collections,
+		CollectCount: post.CollectCount,
 		LikeCount:    post.LikeCount,
 		SendTime:     post.CreatedAt.Format("2006-01-02 15:04:05"),
 		Documents:    InfoBriefs,
 	}
+}
+
+// PostListResponse 帖子列表响应结构
+type PostListResponse struct {
+	PostID       uint64 `json:"postId"`
+	SenderID     uint64 `json:"senderId"`
+	SenderName   string `json:"senderName"`
+	SenderAvatar string `json:"senderAvatar"`
+	Title        string `json:"title"`
+	Content      string `json:"content"`
+	CommentCount uint32 `json:"commentCount"`
+	CollectCount uint32 `json:"collectCount"`
+	ReadCount    uint32 `json:"readCount"`
+	LikeCount    uint32 `json:"likeCount"`
+	SendTime     string `json:"sendTime"`
+}
+
+// BuildPostListResponse 构建帖子列表响应
+func BuildPostListResponse(posts []models.Post) []PostListResponse {
+	var responses []PostListResponse
+	for _, post := range posts {
+		// 获取发帖人信息
+		sender, _ := dao.GetUserByID(post.SenderID)
+		senderName := sender.Username
+		senderAvatar := sender.Avatar
+
+		responses = append(responses, PostListResponse{
+			PostID:       post.ID,
+			SenderID:     post.SenderID,
+			SenderName:   senderName,
+			SenderAvatar: utils.GetFileURL(senderAvatar),
+			Title:        post.Title,
+			Content:      post.Content,
+			CommentCount: post.CommentCount,
+			CollectCount: post.CollectCount,
+			LikeCount:    post.LikeCount,
+			SendTime:     post.CreatedAt.Format("2006-01-02 15:04:05"),
+		})
+	}
+	return responses
 }

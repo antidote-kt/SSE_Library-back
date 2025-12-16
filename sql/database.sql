@@ -158,7 +158,7 @@ CREATE TABLE posts (
                        content TEXT NOT NULL COMMENT '帖子内容',
                        read_count INT UNSIGNED DEFAULT 0 COMMENT '阅读量',
                        like_count INT UNSIGNED DEFAULT 0 COMMENT '点赞量',
-                       collections INT UNSIGNED DEFAULT 0 COMMENT '收藏量',
+                       collect_count INT UNSIGNED DEFAULT 0 COMMENT '收藏量',
                        comment_count INT UNSIGNED DEFAULT 0 COMMENT '评论量',
                        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '发布时间 (对应 sendTime)',
                        deleted_at TIMESTAMP NULL DEFAULT NULL COMMENT '软删除标记',

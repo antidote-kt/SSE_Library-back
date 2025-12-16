@@ -43,7 +43,7 @@ func CreatePost(c *gin.Context) {
 		SenderID: req.SenderID,
 		Title:    req.Title,
 		Content:  req.Content,
-		// SendTime 由 GORM 的 CreatedAt 自动处理
+		// SendTime 由 GORM 的 autoCreateTime 自动处理
 	}
 
 	// 6. 提取关联的文档ID列表
@@ -61,7 +61,7 @@ func CreatePost(c *gin.Context) {
 	// 8. 返回成功响应
 	// 构造返回数据
 	responseData := gin.H{
-		"postId": strconv.FormatUint(post.ID, 10),
+		"postId": post.ID,
 	}
 	response.Success(c, responseData, constant.CreatePostSuccess)
 }
@@ -84,8 +84,11 @@ func GetPostList(c *gin.Context) {
 		return
 	}
 
+	// 3. 构建响应数据
+	postList := response.BuildPostListResponse(posts)
+
 	// 4. 返回成功响应
-	response.SuccessWithData(c, posts, constant.PostsObtain)
+	response.SuccessWithData(c, postList, constant.PostsObtain)
 }
 
 // GetPostDetail 获取帖子详情接口

@@ -199,7 +199,7 @@ func handlePostCollection(userID, postID uint64) (interface{}, error) {
 		}
 
 		// 更新帖子的收藏数（增加1）
-		post.Collections++
+		post.CollectCount++
 		// 保存更新后的帖子信息到数据库
 		if err := tx.Save(&post).Error; err != nil {
 			return fmt.Errorf(constant.CollectionUpdateFailed)
@@ -401,9 +401,9 @@ func handlePostUnCollection(userID, postID uint64) (interface{}, error) {
 		}
 
 		// 更新帖子的收藏数（减少1）
-		post.Collections--
-		if post.Collections < 0 {
-			post.Collections = 0 // 确保收藏数不会小于0，防止出现负数
+		post.CollectCount--
+		if post.CollectCount < 0 {
+			post.CollectCount = 0 // 确保收藏数不会小于0，防止出现负数
 		}
 		// 保存更新后的帖子信息到数据库
 		if err := tx.Save(&post).Error; err != nil {

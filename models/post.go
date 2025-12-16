@@ -12,7 +12,7 @@ type Post struct {
 	Title        string         `gorm:"type:varchar(200)" json:"title"`
 	Content      string         `gorm:"type:text;not null" json:"content"`
 	LikeCount    uint32         `gorm:"default:0" json:"like_count"`
-	Collections  uint32         `gorm:"default:0" json:"collection_count"`
+	CollectCount uint32         `gorm:"default:0" json:"collect_count"`
 	CommentCount uint32         `gorm:"default:0" json:"comment_count"`
 	CreatedAt    time.Time      `gorm:"autoCreateTime" json:"created_at"`
 	DeletedAt    gorm.DeletedAt `gorm:"index" json:"-"`

@@ -3,6 +3,7 @@ package dao
 import (
 	"github.com/antidote-kt/SSE_Library-back/config"
 	"github.com/antidote-kt/SSE_Library-back/models"
+	"gorm.io/gorm"
 )
 
 // CreateUser 创建新用户
@@ -23,17 +24,6 @@ func GetUserByID(id uint64) (models.User, error) {
 		return models.User{}, err
 	}
 	return user, nil
-}
-
-// 根据多个用户ID查询用户列表（在个人页面展示的收藏表里展示所有用户收藏的文档关联的uploaders）
-func GetUsersByIDs(ids []uint64) ([]models.User, error) {
-	db := config.GetDB()
-	var users []models.User
-	err := db.Where("id IN (?)", ids).Find(&users).Error
-	if err != nil {
-		return []models.User{}, err
-	}
-	return users, nil
 }
 
 // GetUserByUsername 根据用户名查询用户
@@ -67,7 +57,7 @@ func GetUsers(username *string, userID *uint64) ([]models.User, error) {
 
 	// 如果提供了username作为搜索条件
 	if username != nil && *username != "" {
-		query = query.Where("username LIKE ?", "%"+*username+"%") //模糊搜索
+		query = query.Where("username LIKE ?", "%"+*username+"%") // 模糊搜索
 	}
 
 	// 如果提供了userID作为搜索条件
@@ -76,5 +66,16 @@ func GetUsers(username *string, userID *uint64) ([]models.User, error) {
 	}
 
 	err := query.Find(&users).Error // 如果两者都没提供（即获取用户列表接口），则查询所有数据，也就是获取所有用户。
-	return users, err
+
+	// 如果发生数据库错误，直接返回
+	if err != nil {
+		return nil, err
+	}
+
+	// 如果查询成功但没有找到任何记录，手动返回 gorm.ErrRecordNotFound
+	if len(users) == 0 {
+		return nil, gorm.ErrRecordNotFound
+	}
+
+	return users, nil
 }
