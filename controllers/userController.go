@@ -19,8 +19,9 @@ func RegisterUser(c *gin.Context) {
 	var req dto.RegisterDTO // 定义一个用于绑定请求参数的结构体
 	// 1. 绑定并验证请求参数
 	if err := c.ShouldBind(&req); err != nil {
-		response.Fail(c, http.StatusBadRequest, nil, constant.ParamParseError)
 		// 如果绑定失败，调用response层返回错误响应
+		response.Fail(c, http.StatusBadRequest, nil, constant.ParamParseError)
+		return
 	}
 
 	// 2.验证当前要注册的用户名是否已经存在

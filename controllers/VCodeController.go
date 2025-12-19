@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"log"
 	"net/http"
 
 	"github.com/antidote-kt/SSE_Library-back/constant"
@@ -53,17 +52,14 @@ func SendVerificationCode(c *gin.Context) {
 		return
 	}
 
-	// 5. 发送邮件 (这里可以异步执行以提高接口响应速度)
-	go func() {
-		err := utils.SendVerificationEmail(req.Email, code)
-		if err != nil {
-			// 记录发送失败的日志，不影响给前端的成功响应
-			log.Printf("异步发送验证码到 %s 失败: %v", req.Email, err)
-			// 给前端返回常量错误响应（而非err的具体错误信息）
-			response.Fail(c, http.StatusInternalServerError, nil, constant.VerificationCodeSendFailed)
-			return
-		}
-	}()
+	// 5. 发送邮件 (这里不采用异步执行，以保证前端真实接收邮件发送结果)
+	// 如果异步执行，会跳过异步执行的协程继续往下执行成功响应，而一旦成功响应发送给了前端，后续的邮件发送结果就会被堵塞，无法改写为报错，前端也就看不到错误信息
+	err = utils.SendVerificationEmail(req.Email, code)
+	if err != nil {
+		// 给前端返回常量错误响应（而非err的具体错误信息）
+		response.Fail(c, http.StatusInternalServerError, nil, constant.VerificationCodeSendFailed)
+		return
+	}
 
 	// 6. 返回成功响应
 	response.Success(c, gin.H{
