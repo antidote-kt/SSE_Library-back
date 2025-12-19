@@ -31,7 +31,7 @@ func GenerateVerificationCode(length int) string {
 func StoreVerificationCode(email, usage, code string) error {
 	rdb := config.GetRedisClient()
 	key := fmt.Sprintf("verify_code:%s:%s", usage, email) // Key格式: verify_code:业务:邮箱
-	log.Printf("存储验证码，生成的Key: %s", key)           // 添加日志
+	log.Printf("存储验证码，生成的Key: %s", key)                   // 添加日志
 	return rdb.Set(config.Ctx, key, code, VerificationCodeExpireDuration).Err()
 }
 
