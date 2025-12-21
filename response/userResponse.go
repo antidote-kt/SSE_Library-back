@@ -51,7 +51,7 @@ func BuildHomepageResponse(user models.User, collectionList, historyList []model
 			Category:    strconv.FormatUint(doc.CategoryID, 10),
 			Collections: doc.Collections,
 			ReadCounts:  doc.ReadCounts,
-			URL:         utils.GetResponseFileURL(doc),
+			Cover:       utils.GetFileURL(doc.Cover),
 		}
 		collectionResponses = append(collectionResponses, docBrief)
 	}
@@ -73,7 +73,7 @@ func BuildHomepageResponse(user models.User, collectionList, historyList []model
 			Category:    strconv.FormatUint(doc.CategoryID, 10),
 			Collections: doc.Collections,
 			ReadCounts:  doc.ReadCounts,
-			URL:         utils.GetResponseFileURL(doc),
+			Cover:       utils.GetFileURL(doc.Cover),
 		}
 		historyResponses = append(historyResponses, docBrief)
 	}

@@ -4,7 +4,7 @@ const (
 	MaxFileSize = 10 << 20 // 最大文件大小 (10MB)
 )
 const (
-	DocumentStatusPending   = "audit"     // 审核中
+	DocumentStatusPending   = "pending"   // 审核中
 	DocumentStatusOpen      = "open"      // 开放
 	DocumentStatusClosed    = "closed"    // 关闭
 	DocumentStatusWithdrawn = "withdrawn" // 已撤回

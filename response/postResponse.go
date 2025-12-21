@@ -94,7 +94,7 @@ func BuildPostDetailResponse(post models.Post, documents []models.Document) Post
 			Category:    strconv.FormatUint(doc.CategoryID, 10),
 			Collections: doc.Collections,
 			ReadCounts:  doc.ReadCounts,
-			URL:         utils.GetResponseFileURL(doc), // 处理文档链接
+			Cover:       utils.GetFileURL(doc.Cover), // 处理文档链接
 		})
 	}
 

@@ -36,9 +36,9 @@ func GetDocumentsByUploaderID(userID uint64) ([]models.Document, error) {
 func GetDocumentsByPostID(postID uint64) ([]models.Document, error) {
 	db := config.GetDB()
 	var documents []models.Document
-	err := db.Model(&models.PostDocument{}).
-		Joins("LEFT JOIN documents ON documents.id = post_documents.document_id").
-		Where("post_documents.post_id = ?", postID).
+	// 使用子查询，更清晰和高效
+	err := db.Where("id IN (?)",
+		db.Table("post_documents").Select("document_id").Where("post_id = ?", postID)).
 		Find(&documents).Error
 	if err != nil {
 		return nil, err
