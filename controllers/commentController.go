@@ -216,10 +216,65 @@ func PostComment(c *gin.Context) {
 	})
 }
 
+// getCommentsBySource 处理评论获取逻辑
+func getCommentsBySource(c *gin.Context, sourceID uint64, sourceType string) {
+	switch sourceType {
+	case "document":
+		_, err := dao.GetDocumentByID(sourceID)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				response.Fail(c, constant.StatusNotFound, nil, constant.MsgRecordNotFound)
+				return
+			}
+			response.Fail(c, constant.StatusInternalServerError, nil, constant.MsgDatabaseQueryFailed)
+			return
+		}
+	case "post":
+		_, err := dao.GetPostByID(sourceID)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				response.Fail(c, constant.StatusNotFound, nil, constant.MsgRecordNotFound)
+				return
+			}
+			response.Fail(c, constant.StatusInternalServerError, nil, constant.MsgDatabaseQueryFailed)
+			return
+		}
+	default:
+		response.Fail(c, constant.StatusBadRequest, nil, "sourceType 必须是 document 或 post")
+		return
+	}
+
+	// 获取评论列表
+	comments, err := dao.GetCommentWithUserAndDocument(sourceID, sourceType)
+	if err != nil {
+		response.Fail(c, constant.StatusInternalServerError, nil, constant.MsgGetCommentListFailed)
+		return
+	}
+
+	commentList := buildCommentResponseList(comments)
+	response.SuccessWithData(c, commentList, constant.MsgGetCommentListSuccess)
+}
+
 // GET /{sourceType}/{sourceId}/comments
 func GetComments(c *gin.Context) {
 	sourceType := c.Param("sourceType")
 	sourceIDStr := c.Param("sourceId")
+
+	if sourceType == "" {
+
+		if postIDStr := c.Param("post_id"); postIDStr != "" {
+			sourceType = "post"
+			sourceIDStr = postIDStr
+		} else if docIDStr := c.Param("id"); docIDStr != "" {
+			sourceType = "document"
+			sourceIDStr = docIDStr
+		}
+	}
+
+	if sourceType == "" || sourceIDStr == "" {
+		response.Fail(c, constant.StatusBadRequest, nil, "sourceType 和 sourceId 参数缺失")
+		return
+	}
 
 	// 验证 sourceType
 	if sourceType != "document" && sourceType != "post" {
@@ -233,40 +288,7 @@ func GetComments(c *gin.Context) {
 		return
 	}
 
-	// 验证 sourceId 对应的文档或帖子是否存在
-	switch sourceType {
-	case "document":
-		_, err = dao.GetDocumentByID(sourceID)
-		if err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				response.Fail(c, constant.StatusNotFound, nil, constant.MsgRecordNotFound)
-				return
-			}
-			response.Fail(c, constant.StatusInternalServerError, nil, constant.MsgDatabaseQueryFailed)
-			return
-		}
-	case "post":
-		_, err = dao.GetPostByID(sourceID)
-		if err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				response.Fail(c, constant.StatusNotFound, nil, constant.MsgRecordNotFound)
-				return
-			}
-			response.Fail(c, constant.StatusInternalServerError, nil, constant.MsgDatabaseQueryFailed)
-			return
-		}
-	}
-
-	// 获取评论列表
-	comments, err := dao.GetCommentWithUserAndDocument(sourceID, sourceType)
-	if err != nil {
-		response.Fail(c, constant.StatusInternalServerError, nil, constant.MsgGetCommentListFailed)
-		return
-	}
-
-	commentList := buildCommentResponseList(comments)
-
-	response.SuccessWithData(c, commentList, constant.MsgGetCommentListSuccess)
+	getCommentsBySource(c, sourceID, sourceType)
 }
 
 // GET /api/admin/comments
