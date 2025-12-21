@@ -15,7 +15,7 @@ type InfoBriefResponse struct {
 	Category    string `json:"category"`
 	Collections int    `json:"collections"`
 	ReadCounts  int    `json:"readCounts"`
-	URL         string `json:"URL"`
+	Cover       string `json:"cover"`
 }
 
 type UploaderResponse struct {
@@ -33,7 +33,7 @@ type DocumentDetailResponse struct {
 	BookISBN     string              `json:"bookISBN"`
 	Author       string              `json:"author"`
 	Uploader     UploaderResponse    `json:"uploader"`
-	Cover        string              `json:"cover"`
+	URL          string              `json:"URL"`
 	Tags         []string            `json:"tags"`
 	Introduction string              `json:"introduction"`
 	CreateYear   string              `json:"createYear"`
@@ -76,7 +76,7 @@ func BuildDocumentDetailResponse(document models.Document) (DocumentDetailRespon
 		Category:    category.Name,
 		Collections: document.Collections,
 		ReadCounts:  document.ReadCounts,
-		URL:         utils.GetResponseFileURL(document),
+		Cover:       utils.GetFileURL(document.Cover),
 	}
 
 	// 构建 UploaderResponse
@@ -106,7 +106,7 @@ func BuildDocumentDetailResponse(document models.Document) (DocumentDetailRespon
 		BookISBN:     document.BookISBN,
 		Author:       document.Author,
 		Uploader:     uploaderResponse,
-		Cover:        utils.GetFileURL(document.Cover),
+		URL:          utils.GetResponseFileURL(document),
 		Tags:         tagNames,
 		Introduction: document.Introduction,
 		CreateYear:   document.CreateYear,
@@ -130,7 +130,7 @@ func BuildInfoBriefResponse(document models.Document) (InfoBriefResponse, error)
 		Category:    category.Name,
 		Collections: document.Collections,
 		ReadCounts:  document.ReadCounts,
-		URL:         utils.GetResponseFileURL(document),
+		Cover:       utils.GetFileURL(document.Cover),
 	}
 
 	return infoBriefResponse, nil

@@ -36,15 +36,10 @@ func GetDocumentsByUploaderID(userID uint64) ([]models.Document, error) {
 func GetDocumentsByPostID(postID uint64) ([]models.Document, error) {
 	db := config.GetDB()
 	var documents []models.Document
-	err := db.Model(&models.PostDocument{}).
-		// 【关键】指定只查询 documents 表的字段，防止 ID 混淆
-		Select("documents.*").
-		// 使用 INNER JOIN 即可，确保只查出存在的文档
-		Joins("JOIN documents ON documents.id = post_documents.document_id").
-		// 过滤条件：指定帖子ID，且确保关联关系未被软删除
-		Where("post_documents.post_id = ? AND post_documents.deleted_at IS NULL", postID).
-		// 严谨起见，也可以过滤掉已删除的文档
-		Where("documents.deleted_at IS NULL").
+
+	// 使用子查询，更清晰和高效
+	err := db.Where("id IN (?)",
+		db.Table("post_documents").Select("document_id").Where("post_id = ?", postID)).
 		Find(&documents).Error
 	if err != nil {
 		return nil, err
