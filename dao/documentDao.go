@@ -37,8 +37,14 @@ func GetDocumentsByPostID(postID uint64) ([]models.Document, error) {
 	db := config.GetDB()
 	var documents []models.Document
 	err := db.Model(&models.PostDocument{}).
-		Joins("LEFT JOIN documents ON documents.id = post_documents.document_id").
-		Where("post_documents.post_id = ?", postID).
+		// 【关键】指定只查询 documents 表的字段，防止 ID 混淆
+		Select("documents.*").
+		// 使用 INNER JOIN 即可，确保只查出存在的文档
+		Joins("JOIN documents ON documents.id = post_documents.document_id").
+		// 过滤条件：指定帖子ID，且确保关联关系未被软删除
+		Where("post_documents.post_id = ? AND post_documents.deleted_at IS NULL", postID).
+		// 严谨起见，也可以过滤掉已删除的文档
+		Where("documents.deleted_at IS NULL").
 		Find(&documents).Error
 	if err != nil {
 		return nil, err
@@ -141,7 +147,7 @@ func SearchDocumentsByParams(request dto.SearchDocumentDTO) ([]models.Document, 
 				query = query.Joins("LEFT JOIN document_tag ON documents.id = document_tag.document_id").
 					Joins("LEFT JOIN tags ON document_tag.tag_id = tags.id").
 					Where("documents.name LIKE ? OR documents.author LIKE ? OR documents.book_isbn LIKE ? OR documents.introduction LIKE ? OR tags.tag_name LIKE ?",
-								"%"+key+"%", "%"+key+"%", "%"+key+"%", "%"+key+"%", "%"+key+"%").
+						"%"+key+"%", "%"+key+"%", "%"+key+"%", "%"+key+"%", "%"+key+"%").
 					Group("documents.id") // 避免因为JOIN导致的重复记录
 			}
 		} else {
@@ -149,7 +155,7 @@ func SearchDocumentsByParams(request dto.SearchDocumentDTO) ([]models.Document, 
 			query = query.Joins("LEFT JOIN document_tag ON documents.id = document_tag.document_id").
 				Joins("LEFT JOIN tags ON document_tag.tag_id = tags.id").
 				Where("documents.name LIKE ? OR documents.author LIKE ? OR documents.book_isbn LIKE ? OR documents.introduction LIKE ? OR tags.tag_name LIKE ?",
-							"%"+key+"%", "%"+key+"%", "%"+key+"%", "%"+key+"%", "%"+key+"%").
+					"%"+key+"%", "%"+key+"%", "%"+key+"%", "%"+key+"%", "%"+key+"%").
 				Group("documents.id") // 避免因为JOIN导致的重复记录
 		}
 	}
