@@ -36,9 +36,15 @@ func GetDocumentsByUploaderID(userID uint64) ([]models.Document, error) {
 func GetDocumentsByPostID(postID uint64) ([]models.Document, error) {
 	db := config.GetDB()
 	var documents []models.Document
-	// 使用子查询，更清晰和高效
-	err := db.Where("id IN (?)",
-		db.Table("post_documents").Select("document_id").Where("post_id = ?", postID)).
+
+	// 使用 JOIN 查询，只获取 documents 表的数据
+	// 同时也过滤了 post_documents 表的软删除记录 (如果存在 deleted_at)
+	// 以及 documents 表本身必须是 Open 状态且未删除
+	err := db.Model(&models.Document{}).
+		Select("documents.*"). // 显式指定只查询 documents 表的字段，防止 ID 被 post_documents.id 覆盖
+		Joins("JOIN post_documents ON post_documents.document_id = documents.id").
+		Where("post_documents.post_id = ? AND post_documents.deleted_at IS NULL", postID).
+		Where("documents.status = ? AND documents.deleted_at IS NULL", constant.DocumentStatusOpen).
 		Find(&documents).Error
 	if err != nil {
 		return nil, err
@@ -116,6 +122,8 @@ func DeleteDocumentWithTx(tx *gorm.DB, document models.Document) error {
 func SearchDocumentsByParams(request dto.SearchDocumentDTO) ([]models.Document, error) {
 	db := config.GetDB()
 	query := db.Model(&models.Document{})
+	// 基础条件：只查询状态为Open的文档，且未删除
+	query = query.Where("status = ? AND deleted_at IS NULL", constant.DocumentStatusOpen)
 	// 首先根据key搜索 - 如果TypeOfKey参数传了，则只搜索指定字段，否则搜索全部字段（包括标签）
 	if request.Key != nil && *request.Key != "" {
 		key := *request.Key
@@ -159,7 +167,7 @@ func SearchDocumentsByParams(request dto.SearchDocumentDTO) ([]models.Document, 
 		query = query.Where("category_id = ?", *request.CategoryID)
 	}
 
-	if request.Type != nil && *request.Type != "" {
+	if request.Type != nil && *request.Type != "" && *request.Type != "null" {
 		query = query.Where("type = ?", *request.Type)
 	}
 
@@ -180,13 +188,22 @@ func SearchDocumentsByParams(request dto.SearchDocumentDTO) ([]models.Document, 
 // GetDocumentList 获取文档列表
 // isSuggest: 是否为推荐模式 (true: 返回阅读量前10的文档)
 // categoryID: 分类ID查找特定分类的所有文档 (nil: 默认推荐模式)
-func GetDocumentList(isSuggest bool, categoryID *uint64) ([]models.Document, error) {
+func GetDocumentList(isSuggest bool, categoryID *uint64, userID uint64) ([]models.Document, error) {
 	db := config.GetDB()
 	var documents []models.Document
 	query := db.Model(&models.Document{})
 
 	// 基础条件：只返回状态为Open的文档，且未删除
-	query = query.Where("status = ? AND deleted_at IS NULL", constant.DocumentStatusOpen)
+	// 验证身份,如果是管理员则不加上述限制
+	user, err := GetUserByID(userID)
+	if err != nil {
+		return nil, err
+	}
+	if user.Role != "admin" {
+		query = query.Where("status = ? AND deleted_at IS NULL", constant.DocumentStatusOpen)
+	} else {
+		query = query.Where("deleted_at IS NULL")
+	}
 
 	// 1. 处理分类筛选 (无论是推荐模式还是普通模式，分类筛选如果传了都应该生效)
 	// 如果不希望在推荐模式下筛选分类，可以将这段移到 else 分支里
@@ -201,7 +218,7 @@ func GetDocumentList(isSuggest bool, categoryID *uint64) ([]models.Document, err
 		query = query.Order("created_at DESC")
 	}
 
-	err := query.Find(&documents).Error
+	err = query.Find(&documents).Error
 	if err != nil {
 		return nil, err
 	}

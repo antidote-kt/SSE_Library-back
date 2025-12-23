@@ -67,12 +67,12 @@ func WithdrawUpload(c *gin.Context) {
 		return
 	}
 
-	// 检查文档状态是否为审核中（只有审核中的文档才能撤回）
-	if document.Status != constant.DocumentStatusPending {
-		// 不允许撤回，返回错误响应
-		response.Fail(c, http.StatusBadRequest, nil, constant.NotAllowWithdraw)
-		return
-	}
+	//// 检查文档状态是否为审核中（只有审核中的文档才能撤回）
+	//if document.Status != constant.DocumentStatusPending {
+	//	// 不允许撤回，返回错误响应
+	//	response.Fail(c, http.StatusBadRequest, nil, constant.NotAllowWithdraw)
+	//	return
+	//}
 
 	// 更新文档状态为撤回状态
 	document.Status = constant.DocumentStatusWithdrawn

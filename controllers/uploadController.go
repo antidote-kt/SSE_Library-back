@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/antidote-kt/SSE_Library-back/config"
 	"github.com/antidote-kt/SSE_Library-back/constant"
@@ -127,19 +126,7 @@ func UploadDocument(c *gin.Context) {
 	if req.CreateYear != nil {
 		document.CreateYear = *req.CreateYear
 	}
-
-	// 处理上传时间
-	if req.UploadTime != nil {
-		// 解析时间字符串
-		parsedTime, err := time.Parse("2006-01-02 15:04:05", *req.UploadTime)
-		if err != nil {
-			// 时间格式错误，返回错误响应
-			response.Fail(c, http.StatusBadRequest, nil, constant.TimeFormatError)
-			return
-		}
-		document.CreatedAt = parsedTime
-	}
-
+	
 	// 使用数据库事务创建文档
 	err = db.Transaction(func(tx *gorm.DB) error {
 		// 使用事务创建文档记录

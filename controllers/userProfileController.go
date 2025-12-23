@@ -35,58 +35,31 @@ func GetProfile(c *gin.Context) {
 		return
 	}
 
-	// 2. 并行获取用户基本信息、收藏列表、历史记录
-	userChan := make(chan models.User)
-	collectionChan := make(chan []models.Document)
-	historyChan := make(chan []models.Document)
-	errChan := make(chan error, 3)
+	// 2. 获取用户基本信息、收藏列表、历史记录
+	var userInfo models.User
+	var collectionList []models.Document
+	var historyList []models.Document
 
-	go func() {
-		user, err := dao.GetUserByID(userID)
-		if err != nil {
-			errChan <- err
-			return
-		}
-		userChan <- user
-	}()
+	userInfo, err = dao.GetUserByID(userID)
+	if err != nil {
+		response.Fail(c, http.StatusNotFound, nil, constant.UserNotExist)
+		return
+	}
 
-	go func() {
-		collections, err := dao.GetFavoriteDocumentsByUserID(userID)
-		if err != nil {
-			errChan <- err
-			return
-		}
-		collectionChan <- collections
-	}()
+	collectionList, err = dao.GetFavoriteDocumentsByUserID(userID)
+	if err != nil {
+		response.Fail(c, http.StatusInternalServerError, nil, constant.GetDataFailed+err.Error())
+		return
+	}
 
-	go func() {
-		histories, err := dao.GetViewHistoryDocumentsByUserID(userID)
-		if err != nil {
-			errChan <- err
-			return
-		}
-		historyChan <- histories
-	}()
-
-	// 等待所有goroutine完成
-	var user models.User
-	var collectionList, historyList []models.Document
-	for i := 0; i < 3; i++ {
-		select {
-		case u := <-userChan:
-			user = u
-		case cl := <-collectionChan:
-			collectionList = cl
-		case hl := <-historyChan:
-			historyList = hl
-		case err := <-errChan:
-			response.Fail(c, http.StatusInternalServerError, nil, constant.GetDataFailed+err.Error())
-			return
-		}
+	historyList, err = dao.GetViewHistoryDocumentsByUserID(userID)
+	if err != nil {
+		response.Fail(c, http.StatusInternalServerError, nil, constant.GetDataFailed+err.Error())
+		return
 	}
 
 	// 3. 调用response层组装返回数据
-	homepageResponse, err := response.BuildHomepageResponse(user, collectionList, historyList)
+	homepageResponse, err := response.BuildHomepageResponse(userInfo, collectionList, historyList)
 	if err != nil {
 		response.Fail(c, http.StatusInternalServerError, nil, constant.ConstructDataFailed)
 		return
