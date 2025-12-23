@@ -1,7 +1,7 @@
 package constant
 
 const (
-	MaxFileSize = 10 << 20 // 最大文件大小 (10MB)
+	MaxFileSize = 10 << 24 // 最大文件大小 (160MB)
 )
 const (
 	DocumentStatusPending   = "pending"   // 审核中

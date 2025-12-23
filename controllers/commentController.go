@@ -152,19 +152,6 @@ func PostComment(c *gin.Context) {
 		return
 	}
 
-	var parsedTime time.Time
-	parsedTime, err = time.Parse(time.RFC3339, request.CreateTime)
-	if err != nil {
-		parsedTime, err = time.ParseInLocation("2006-01-02 15:04:05", request.CreateTime, time.Local)
-		if err != nil {
-			parsedTime, err = time.ParseInLocation("2006-01-02 15:04", request.CreateTime, time.Local)
-			if err != nil {
-				response.Fail(c, constant.StatusBadRequest, nil, constant.MsgCreateTimeFormatError)
-				return
-			}
-		}
-	}
-
 	// 如果有父评论ID，验证父评论是否存在
 	if request.ParentID != nil && *request.ParentID != 0 {
 		parentComment, err := dao.GetCommentByID(*request.ParentID)
@@ -191,7 +178,6 @@ func PostComment(c *gin.Context) {
 		SourceID:   sourceID,
 		SourceType: sourceType,
 		ParentID:   request.ParentID,
-		CreatedAt:  parsedTime,
 	}
 
 	err = dao.CreateComment(comment)

@@ -39,6 +39,7 @@ type WSMessage struct {
 }
 
 // Start 启动管理器的主循环 (需要在main.go中调用)
+// 函数前置的(manager *Manager)规定了该函数属于Manager类，只能由Manager类的一个实例manager调用
 func (manager *Manager) Start() {
 	for {
 		select {
@@ -55,9 +56,14 @@ func (manager *Manager) Start() {
 			log.Printf("用户 %d 已连接 WebSocket", client.ID)
 
 		case client := <-manager.Unregister:
-			// 用户断开连接
+			// 用户断开最后一条连接
 			manager.Lock.Lock()
-			if _, ok := manager.Clients[client.ID]; ok {
+			// 只有当 Map 中存的 Client 指针 等于 当前要注销的 Client 指针时，才执行删除和关闭
+			//（也就是说如果本次注销是旧连接自己的注销逻辑而不是新连接的强制注销，那么就不会执行，因为Map 中存的 Client 指针）
+			// 这防止了：
+			// 1. 旧连接注销时把新连接删了
+			// 2. 旧连接被 Register 关闭后，ReadPump协程断开触发的 Unregister 再次关闭导致 Panic
+			if targetClient, ok := manager.Clients[client.ID]; ok && targetClient == client {
 				delete(manager.Clients, client.ID)
 				close(client.Send)
 			}
@@ -68,7 +74,6 @@ func (manager *Manager) Start() {
 }
 
 // SendToUser 向指定用户推送消息
-// 函数前置的(manager *Manager)规定了该函数属于Manager类，只能由Manager类的一个实例manager调用
 func (manager *Manager) SendToUser(userID uint64, message interface{}) (err error) {
 	manager.Lock.RLock()
 	client, ok := manager.Clients[userID]

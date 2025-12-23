@@ -23,8 +23,6 @@ type UploadDTO struct {
 	CreateYear *string `form:"createYear,omitempty"`
 	// 上传者
 	UploaderID uint64 `form:"uploaderId" binding:"required"`
-	// 上传时间
-	UploadTime *string `form:"uploadTime,omitempty"`
 }
 type WithdrawUploadDTO struct {
 	DocumentID uint64 `form:"documentId" binding:"required"`

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log"
 	"mime/multipart"
 	"net/http"
 	"net/url"
@@ -53,6 +54,9 @@ func UploadFile(key string, file io.Reader) error {
 	// 对象键（Key）是对象在存储桶中的唯一标识。
 	client, _ := getCOSClient()
 	_, err := client.Object.Put(context.Background(), key, file, nil)
+	if err != nil {
+		log.Fatalf(err.Error())
+	}
 	return err
 }
 

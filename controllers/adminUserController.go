@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"errors"
 	"net/http"
 
 	"github.com/antidote-kt/SSE_Library-back/constant"
@@ -9,7 +8,6 @@ import (
 	"github.com/antidote-kt/SSE_Library-back/dto"
 	"github.com/antidote-kt/SSE_Library-back/response"
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 )
 
 // UpdateUserStatus 管理员修改指定用户的状态
@@ -55,48 +53,4 @@ func UpdateUserStatus(c *gin.Context) {
 
 	// 6. 构造并返回更新后的用户信息
 	response.SuccessWithData(c, userBrief, constant.UpdateUserStatusSuccess)
-}
-
-// GetUsers 获取或搜索用户列表
-func GetUsers(c *gin.Context) {
-	var req dto.SearchUsersDTO
-
-	// 1. 绑定可选的Query参数
-	if err := c.ShouldBindQuery(&req); err != nil {
-		response.Fail(c, http.StatusBadRequest, nil, constant.ParamParseError)
-		return
-	}
-
-	// 2. 调用DAO层进行查询
-	users, err := dao.GetUsers(req.Username, req.UserID)
-	if err != nil {
-		// 如果用户不存在
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			response.Fail(c, http.StatusNotFound, nil, constant.UserNotExist)
-			return
-		}
-		// 其他数据库错误
-		response.Fail(c, http.StatusInternalServerError, nil, constant.DatabaseError)
-		return
-	}
-
-	// 3. 将用户列表转换为response层的响应结构列表
-	var userResponses []response.UserBriefResponse
-	for _, user := range users {
-		// 调用已有的 BuildUserBriefResponse 函数处理单个用户
-		userBrief := response.UserBriefResponse{
-			UserID:     user.ID,
-			Username:   user.Username,
-			UserAvatar: user.Avatar,
-			Status:     user.Status,
-			CreateTime: user.CreatedAt.Format("2006-01-02 15:04:05"),
-			Email:      user.Email,
-			Role:       user.Role,
-		}
-		// 将处理后的用户信息添加到列表中
-		userResponses = append(userResponses, userBrief)
-	}
-
-	// 4. 返回成功的响应
-	response.SuccessWithData(c, userResponses, constant.GetUserSuccess)
 }
