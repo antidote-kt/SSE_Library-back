@@ -68,7 +68,7 @@ func GetPostList(key string, order string) ([]models.Post, error) {
 	// order: "time" -> 时间倒序 (默认)
 	// order: "hot"  -> 收藏量倒序 (也可以按阅读量或点赞量)
 	if order == "hot" {
-		query = query.Order("collections DESC")
+		query = query.Order("collect_count DESC")
 	} else {
 		// 默认按时间排序
 		query = query.Order("created_at DESC")

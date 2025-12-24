@@ -126,7 +126,7 @@ func UploadDocument(c *gin.Context) {
 	if req.CreateYear != nil {
 		document.CreateYear = *req.CreateYear
 	}
-	
+
 	// 使用数据库事务创建文档
 	err = db.Transaction(func(tx *gorm.DB) error {
 		// 使用事务创建文档记录
@@ -144,17 +144,12 @@ func UploadDocument(c *gin.Context) {
 		response.Fail(c, http.StatusInternalServerError, nil, constant.DocumentCreateFail)
 		return
 	}
-
-	// 5. 返回成功响应
-	docDetailResponse, err := response.BuildDocumentDetailResponse(document)
-	if err != nil {
-		// 如果构建响应失败，仍返回基本成功信息
-		response.Fail(c, http.StatusInternalServerError, nil, constant.DatabaseError)
-		return
+	responseData := gin.H{
+		"documentId": document.ID,
 	}
 
 	// 返回上传成功的响应
-	response.SuccessWithData(c, docDetailResponse, constant.DocumentCreateSuccess)
+	response.Success(c, responseData, constant.DocumentCreateSuccess)
 }
 
 // validateFileSize 验证文件大小是否符合要求
