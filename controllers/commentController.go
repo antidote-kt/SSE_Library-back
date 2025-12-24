@@ -241,30 +241,34 @@ func getCommentsBySource(c *gin.Context, sourceID uint64, sourceType string) {
 	response.SuccessWithData(c, commentList, constant.MsgGetCommentListSuccess)
 }
 
-// GET /{sourceType}/{sourceId}/comments
-func GetComments(c *gin.Context) {
-	sourceType := c.Param("sourceType")
+// GET /post/{sourceId}/comments
+func GetPostComments(c *gin.Context) {
 	sourceIDStr := c.Param("sourceId")
 
-	if sourceType == "" {
+	sourceType := "post"
 
-		if postIDStr := c.Param("post_id"); postIDStr != "" {
-			sourceType = "post"
-			sourceIDStr = postIDStr
-		} else if docIDStr := c.Param("id"); docIDStr != "" {
-			sourceType = "document"
-			sourceIDStr = docIDStr
-		}
-	}
-
-	if sourceType == "" || sourceIDStr == "" {
-		response.Fail(c, constant.StatusBadRequest, nil, "sourceType 和 sourceId 参数缺失")
+	if sourceIDStr == "" {
+		response.Fail(c, constant.StatusBadRequest, nil, "sourceId 参数缺失")
 		return
 	}
 
-	// 验证 sourceType
-	if sourceType != "document" && sourceType != "post" {
-		response.Fail(c, constant.StatusBadRequest, nil, "sourceType 必须是 document 或 post")
+	sourceID, err := strconv.ParseUint(sourceIDStr, 10, 64)
+	if err != nil {
+		response.Fail(c, constant.StatusBadRequest, nil, "sourceId 格式错误")
+		return
+	}
+
+	getCommentsBySource(c, sourceID, sourceType)
+}
+
+// GET /document/{sourceId}/comments
+func GetDocumentComments(c *gin.Context) {
+	sourceIDStr := c.Param("sourceId")
+
+	sourceType := "document"
+
+	if sourceIDStr == "" {
+		response.Fail(c, constant.StatusBadRequest, nil, "sourceId 参数缺失")
 		return
 	}
 

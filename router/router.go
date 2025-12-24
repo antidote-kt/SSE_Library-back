@@ -44,8 +44,8 @@ func SetupRouter() *gin.Engine {
 		authed.GET("/getPosts", controllers.GetPostList)                 // 获取帖子列表
 		authed.GET("/post/:post_id", controllers.GetPostDetail)          // 获取帖子详情
 		// 评论相关路由：必须在 /post/:post_id 之前，使用更具体的路径避免路由冲突
-		authed.GET("/post/:post_id/comments", controllers.GetComments) // 获取帖子的评论
-		authed.GET("/document/:id/comments", controllers.GetComments)  // 获取文档的评论
+		authed.GET("/comments/post/:sourceId", controllers.GetPostComments)         // 获取帖子的评论
+		authed.GET("/comments/document/:sourceId", controllers.GetDocumentComments) // 获取文档的评论
 
 		// 用户相关操作
 		userApi := authed.Group("/user")
