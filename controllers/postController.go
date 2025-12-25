@@ -88,8 +88,8 @@ func GetPostList(c *gin.Context) {
 // GetPostDetail 获取帖子详情接口
 func GetPostDetail(c *gin.Context) {
 	// 1. 获取帖子ID
-	var postIDstr = c.Param("postId")
-	postID, _ := strconv.ParseUint(postIDstr, 10, 64)
+	var postIDStr = c.Param("postId")
+	postID, _ := strconv.ParseUint(postIDStr, 10, 64)
 
 	// 2. 调用 DAO 获取帖子详情
 	post, err := dao.GetPostByID(postID)
@@ -97,7 +97,6 @@ func GetPostDetail(c *gin.Context) {
 		response.Fail(c, http.StatusInternalServerError, nil, constant.DatabaseError)
 		return
 	}
-
 	// 3. 查询帖子相关文档
 	postdocs, err := dao.GetDocumentsByPostID(post.ID)
 	if err != nil {

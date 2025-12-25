@@ -51,7 +51,7 @@ const (
 	GetFavoriteDocumentFailed   = "获取收藏文档列表失败"
 	DefaultAuthor               = "佚名"
 	NotAllowWithdrawOthers      = "不允许撤回其他人的文档"
-	NotAllowWithdraw            = "文档不在审核中，不允许撤回"
+	DocumentNotAllow            = "文档不允许查看"
 	DocumentObtain              = "文档获取成功"
 	DocumentsObtain             = "文档列表获取成功"
 	DocumentTagCreateFailed     = "创建文档标签关联失败"
@@ -168,11 +168,11 @@ const (
 
 // 评论成功相关常量
 const (
-	MsgCommentPostSuccess     = "评论发表成功"
-	MsgCommentDeleteSuccess   = "删除评论成功"
-	MsgGetCommentListSuccess  = "获取评论列表成功"
-	MsgGetAllCommentsSuccess  = "获取所有评论成功"
-	MsgGetUserCommentsSuccess = "获取用户评论成功"
+	MsgCommentPostSuccess      = "评论发表成功"
+	MsgCommentDeleteSuccess    = "删除评论成功"
+	MsgGetCommentListSuccess   = "获取评论列表成功"
+	MsgGetAllCommentsSuccess   = "获取所有评论成功"
+	MsgGetUserCommentsSuccess  = "获取用户评论成功"
 	MsgGetSingleCommentSuccess = "获取单条评论成功"
 )
 
