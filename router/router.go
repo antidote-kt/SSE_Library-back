@@ -33,6 +33,7 @@ func SetupRouter() *gin.Engine {
 		authed.GET("/chat/search", controllers.SearchChatMessages)       //搜索聊天记录
 		authed.GET("/getReminder", controllers.GetNotification)          //获取提醒
 		authed.POST("/markReminderRead", controllers.MarkNotification)   //标记提醒为已读
+		authed.GET("/category/:categoryId", controllers.GetCategoryDetail) // 获取特定的分类或课程详情（必须在 /category 之前）
 		authed.GET("/category", controllers.GetCategoriesAndCourses)     // 获取分类和课程
 		authed.GET("/searchcat", controllers.SearchCategoriesAndCourses) // 搜索分类和课程
 		authed.PUT("/category", controllers.ModifyCategory)              // 修改分类或课程

@@ -103,3 +103,11 @@ func UpdateCategory(category *models.Category) error {
 	return err
 
 }
+
+// GetCategoriesByParentID 根据父分类ID获取所有子分类
+func GetCategoriesByParentID(parentID uint64) ([]models.Category, error) {
+	db := config.GetDB()
+	var categories []models.Category
+	err := db.Where("parent_id = ? AND deleted_at IS NULL", parentID).Find(&categories).Error
+	return categories, err
+}
