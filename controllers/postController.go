@@ -46,19 +46,13 @@ func CreatePost(c *gin.Context) {
 		// SendTime 由 GORM 的 autoCreateTime 自动处理
 	}
 
-	// 6. 提取关联的文档ID列表
-	var documentIDs []uint64
-	for _, docItem := range req.Documents {
-		documentIDs = append(documentIDs, docItem.DocumentID)
-	}
-
-	// 7. 调用 DAO 保存数据
-	if err := dao.CreatePostWithTx(&post, documentIDs); err != nil {
+	// 6. 调用 DAO 保存数据
+	if err := dao.CreatePostWithTx(&post, req.DocumentIDs); err != nil {
 		response.Fail(c, http.StatusInternalServerError, nil, "发帖失败: "+err.Error())
 		return
 	}
 
-	// 8. 返回成功响应
+	// 7. 返回成功响应
 	// 构造返回数据
 	responseData := gin.H{
 		"postId": post.ID,
@@ -94,8 +88,8 @@ func GetPostList(c *gin.Context) {
 // GetPostDetail 获取帖子详情接口
 func GetPostDetail(c *gin.Context) {
 	// 1. 获取帖子ID
-	var postIDstr = c.Param("post_id")
-	postID, _ := strconv.ParseUint(postIDstr, 10, 64)
+	var postIDStr = c.Param("postId")
+	postID, _ := strconv.ParseUint(postIDStr, 10, 64)
 
 	// 2. 调用 DAO 获取帖子详情
 	post, err := dao.GetPostByID(postID)
@@ -103,7 +97,6 @@ func GetPostDetail(c *gin.Context) {
 		response.Fail(c, http.StatusInternalServerError, nil, constant.DatabaseError)
 		return
 	}
-
 	// 3. 查询帖子相关文档
 	postdocs, err := dao.GetDocumentsByPostID(post.ID)
 	if err != nil {

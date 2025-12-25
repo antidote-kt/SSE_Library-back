@@ -409,7 +409,7 @@ func GetSessionList(c *gin.Context) {
 // ConnectWS : WebSocket 连接接口
 // GET /api/ws
 func ConnectWS(c *gin.Context) {
-	// 1. 获取当前用户ID (Token 放在 Query 参数里: /api/ws?token=xxx)
+	// 1. 获取前端发起连接的用户ID (Token 放在 Query 参数里: /api/ws?token=xxx)
 	// WebSocket 连接建立时通常不能自定义 Header，所以 Token 常放在 URL 参数中
 	token := c.Query("token")
 	if token == "" {

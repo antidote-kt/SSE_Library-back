@@ -19,7 +19,7 @@ type PostDetailResponse struct {
 	CommentCount uint32              `json:"commentCount"`
 	LikeCount    uint32              `json:"likeCount"`
 	SendTime     string              `json:"sendTime"`
-	Documents    []InfoBriefResponse `json:"documents"`
+	DocumentList []InfoBriefResponse `json:"documentList"`
 	CollectCount uint32              `json:"collectCount"`
 }
 
@@ -94,7 +94,7 @@ func BuildPostDetailResponse(post models.Post, documents []models.Document) Post
 			Category:    strconv.FormatUint(doc.CategoryID, 10),
 			Collections: doc.Collections,
 			ReadCounts:  doc.ReadCounts,
-			URL:         utils.GetResponseFileURL(doc), // 处理文档链接
+			Cover:       utils.GetFileURL(doc.Cover), // 处理文档链接
 		})
 	}
 
@@ -109,7 +109,7 @@ func BuildPostDetailResponse(post models.Post, documents []models.Document) Post
 		CollectCount: post.CollectCount,
 		LikeCount:    post.LikeCount,
 		SendTime:     post.CreatedAt.Format("2006-01-02 15:04:05"),
-		Documents:    InfoBriefs,
+		DocumentList: InfoBriefs,
 	}
 }
 

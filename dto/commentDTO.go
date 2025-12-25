@@ -5,7 +5,6 @@ type PostCommentDTO struct {
 	Commenter  UserBriefDTO   `json:"commenter" binding:"required"`
 	SourceData *SourceDataDTO `json:"sourceData" binding:"required"`
 	Content    string         `json:"content" binding:"required"`
-	CreateTime string         `json:"createTime" binding:"required"`
 }
 
 type AuthorDTO struct {
