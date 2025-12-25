@@ -103,3 +103,26 @@ func UpdateCategory(category *models.Category) error {
 	return err
 
 }
+
+// GetCategoriesByParentID 根据父分类ID获取所有子分类
+func GetCategoriesByParentID(parentID uint64) ([]models.Category, error) {
+	db := config.GetDB()
+	var categories []models.Category
+	err := db.Where("parent_id = ? AND deleted_at IS NULL", parentID).Find(&categories).Error
+	return categories, err
+}
+
+// GetPostHeatByCategory 获取分类下所有文档关联的帖子总热度（点赞数+收藏数+评论数）
+func GetPostHeatByCategory(categoryID uint64) (int64, error) {
+	db := config.GetDB()
+	var totalHeat int64
+
+	err := db.Table("posts").
+		Select("COALESCE(SUM(posts.like_count + posts.collect_count + posts.comment_count), 0)").
+		Joins("JOIN post_documents ON posts.id = post_documents.post_id AND post_documents.deleted_at IS NULL").
+		Joins("JOIN documents ON post_documents.document_id = documents.id AND documents.deleted_at IS NULL").
+		Where("documents.category_id = ? AND posts.deleted_at IS NULL", categoryID).
+		Scan(&totalHeat).Error
+
+	return totalHeat, err
+}
