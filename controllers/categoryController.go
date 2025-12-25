@@ -356,3 +356,92 @@ func ModifyCategory(c *gin.Context) {
 	// 返回成功响应（根据图片要求，返回格式包含 data 对象）
 	response.SuccessWithData(c, responseData, constant.MsgCategoryUpdateSuccess)
 }
+
+// buildCategoryResponseWithChildren 递归构建分类响应，包括子分类
+func buildCategoryResponseWithChildren(category models.Category, fileCounts map[uint64]int64, readCounts map[uint64]int64) *CategoryResponse {
+	categoryResp := &CategoryResponse{
+		ID:          category.ID,
+		Name:        category.Name,
+		IsCourse:    category.IsCourse,
+		FileCounts:  fileCounts[category.ID],
+		ReadCounts:  readCounts[category.ID],
+		Description: category.Description,
+		ParentID:    category.ParentID,
+		Children:    make([]*CategoryResponse, 0),
+	}
+
+	// 递归获取子分类
+	children, err := dao.GetCategoriesByParentID(category.ID)
+	if err == nil && len(children) > 0 {
+		// 为子分类统计文件数量和浏览量
+		childrenFileCounts := make(map[uint64]int64)
+		childrenReadCounts := make(map[uint64]int64)
+
+		for _, child := range children {
+			fileCount, _ := dao.CountDocumentsByCategory(child.ID)
+			readCount, _ := dao.GetDocumentReadCountsByCategory(child.ID)
+			childrenFileCounts[child.ID] = fileCount
+			childrenReadCounts[child.ID] = readCount
+		}
+
+		// 递归构建子分类响应
+		for _, child := range children {
+			childResp := buildCategoryResponseWithChildren(child, childrenFileCounts, childrenReadCounts)
+			categoryResp.Children = append(categoryResp.Children, childResp)
+		}
+	}
+
+	return categoryResp
+}
+
+// GetCategoryDetail 获取特定的分类或课程详情
+// GET /category/:categoryId
+func GetCategoryDetail(c *gin.Context) {
+	// 获取路径参数
+	categoryIDStr := c.Param("categoryId")
+	if categoryIDStr == "" {
+		response.Fail(c, constant.StatusBadRequest, nil, "categoryId 参数不能为空")
+		return
+	}
+
+	// 解析 categoryId
+	categoryID, err := strconv.ParseUint(categoryIDStr, 10, 64)
+	if err != nil {
+		response.Fail(c, constant.StatusBadRequest, nil, "categoryId 格式错误")
+		return
+	}
+
+	// 获取分类信息
+	category, err := dao.GetCategoryByID(categoryID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			response.Fail(c, constant.StatusNotFound, nil, constant.CategoryNotExist)
+			return
+		}
+		response.Fail(c, constant.StatusInternalServerError, nil, constant.MsgDatabaseQueryFailed)
+		return
+	}
+
+	// 统计文件数量和浏览量
+	fileCount, err := dao.CountDocumentsByCategory(category.ID)
+	if err != nil {
+		response.Fail(c, constant.StatusInternalServerError, nil, constant.MsgCategoryCountFailed)
+		return
+	}
+
+	readCount, err := dao.GetDocumentReadCountsByCategory(category.ID)
+	if err != nil {
+		response.Fail(c, constant.StatusInternalServerError, nil, constant.MsgCategoryReadCountFailed)
+		return
+	}
+
+	// 构建文件数量和浏览量映射
+	fileCounts := map[uint64]int64{category.ID: fileCount}
+	readCounts := map[uint64]int64{category.ID: readCount}
+
+	// 递归构建分类响应（包括子分类）
+	categoryResp := buildCategoryResponseWithChildren(category, fileCounts, readCounts)
+
+	// 返回成功响应
+	response.SuccessWithData(c, categoryResp, constant.MsgGetCategoryDetailSuccess)
+}

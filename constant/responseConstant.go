@@ -86,6 +86,7 @@ const (
 	MsgCategoryUpdateSuccess    = "修改分类成功"
 	MsgCategoryUpdateFailed     = "修改分类失败"
 	MsgCategoryIDOrNameRequired = "分类ID或名称至少需要提供一个"
+	MsgGetCategoryDetailSuccess = "获取分类详情成功"
 )
 
 // 用户相关常量
