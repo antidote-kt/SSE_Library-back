@@ -51,7 +51,7 @@ const (
 	GetFavoriteDocumentFailed   = "获取收藏文档列表失败"
 	DefaultAuthor               = "佚名"
 	NotAllowWithdrawOthers      = "不允许撤回其他人的文档"
-	NotAllowWithdraw            = "文档不在审核中，不允许撤回"
+	DocumentNotAllow            = "文档不允许查看"
 	DocumentObtain              = "文档获取成功"
 	DocumentsObtain             = "文档列表获取成功"
 	DocumentTagCreateFailed     = "创建文档标签关联失败"
@@ -86,6 +86,7 @@ const (
 	MsgCategoryUpdateSuccess    = "修改分类成功"
 	MsgCategoryUpdateFailed     = "修改分类失败"
 	MsgCategoryIDOrNameRequired = "分类ID或名称至少需要提供一个"
+	MsgGetCategoryDetailSuccess = "获取分类详情成功"
 )
 
 // 用户相关常量

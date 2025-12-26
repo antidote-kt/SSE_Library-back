@@ -32,14 +32,30 @@ const (
 )
 
 // calculateCategoryHeat 计算分类热度值
-// 参考算法: heat = log10(readCounts + fileCounts/10) - daysSinceUpdate
-func calculateCategoryHeat(readCounts, fileCounts int64, daysSinceUpdate float64) float64 {
+// 参考算法: heat = log10(readCounts + fileCounts/10 + postHeat/5) - daysSinceUpdate * decayFactor
+
+func calculateCategoryHeat(readCounts, fileCounts, postHeat int64, daysSinceUpdate float64) float64 {
 	// 避免log10(0)的情况
-	value := float64(readCounts) + float64(fileCounts)/10
+	value := float64(readCounts) + float64(fileCounts)/10 + float64(postHeat)/5
 	if value < 1 {
 		value = 1
 	}
-	return math.Log10(value) - daysSinceUpdate
+
+	baseHeat := math.Log10(value)
+
+	decayFactor := 0.05
+	maxDecayDays := 30.0
+	effectiveDays := daysSinceUpdate
+	if effectiveDays > maxDecayDays {
+		effectiveDays = maxDecayDays
+	}
+
+	heatScore := baseHeat - effectiveDays*decayFactor
+	if heatScore < 0 {
+		heatScore = 0
+	}
+
+	return heatScore
 }
 
 // RefreshCategoryHeat 刷新分类热度并存入Redis ZSet
@@ -85,11 +101,17 @@ func RefreshCategoryHeat() {
 			continue
 		}
 
+		// 统计文档关联的帖子总热度
+		postHeat, err := dao.GetPostHeatByCategory(category.ID)
+		if err != nil {
+			log.Println("统计分类帖子热度失败:", err)
+			postHeat = 0
+		}
+
 		// 计算距离更新的天数
 		daysSinceUpdate := math.Floor(now.Sub(category.UpdatedAt).Hours() / 24)
 
-		// 计算热度
-		heatScore := calculateCategoryHeat(readCount, fileCount, daysSinceUpdate)
+		heatScore := calculateCategoryHeat(readCount, fileCount, postHeat, daysSinceUpdate)
 
 		// 创建分类信息JSON
 		categoryInfo := CategoryHeatInfo{
@@ -138,17 +160,18 @@ func GetHotCategories(c *gin.Context) {
 		RefreshCategoryHeat()
 	}
 
-	// 从Redis ZSet中获取热度最高的分类（降序）
-	hotCategoriesJSON, err := rdb.ZRevRange(ctx, HotCategoriesKey, 0, int64(count-1)).Result()
+	// 使用 ZRevRangeWithScores 获取带分数的结果
+	hotCategoriesWithScores, err := rdb.ZRevRangeWithScores(ctx, HotCategoriesKey, 0, int64(count-1)).Result()
 	if err != nil {
-		// Redis 查询失败，返回空数组而不是错误
 		log.Println("Redis查询失败:", err)
 		response.SuccessWithData(c, categoryResponses, constant.MsgGetHotCategoriesSuccess)
 		return
 	}
 
 	// 解析JSON并构建完整的响应
-	for _, jsonStr := range hotCategoriesJSON {
+	// ZRevRangeWithScores 已经按分数降序排列，直接按顺序处理即可
+	for _, z := range hotCategoriesWithScores {
+		jsonStr := z.Member.(string)
 		var heatInfo CategoryHeatInfo
 		if err := json.Unmarshal([]byte(jsonStr), &heatInfo); err != nil {
 			log.Println("Error unmarshalling categoryInfo:", err)
@@ -186,6 +209,7 @@ func GetHotCategories(c *gin.Context) {
 		}
 
 		categoryResponses = append(categoryResponses, categoryResp)
+		log.Printf("热门分类: %s (ID: %d, 热度分数: %.2f, 浏览量: %d)", category.Name, category.ID, z.Score, readCount)
 	}
 
 	response.SuccessWithData(c, categoryResponses, constant.MsgGetHotCategoriesSuccess)
