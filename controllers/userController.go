@@ -211,8 +211,16 @@ func GetUsers(c *gin.Context) {
 		return
 	}
 
+	// 权限验证：从JWT中提取用户身份，并作为参数传给dao.GetUsers
+	claims, exists := c.Get(constant.UserClaims)
+	if !exists {
+		// 如果无法获取用户信息，返回401未授权错误
+		response.Fail(c, http.StatusUnauthorized, nil, constant.GetUserInfoFailed)
+	}
+	userClaims := claims.(*utils.MyClaims)
+
 	// 2. 调用DAO层进行查询
-	users, err := dao.GetUsers(req.Username, req.UserID)
+	users, err := dao.GetUsers(req.Username, req.UserID, userClaims.Role)
 	if err != nil {
 		// 如果用户不存在
 		if errors.Is(err, gorm.ErrRecordNotFound) {

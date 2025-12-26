@@ -27,7 +27,7 @@ func UpdateUserStatus(c *gin.Context) {
 	}
 
 	// 3. 获取要修改的用户
-	user, err := dao.GetUserByID(req.UserID)
+	user, err := dao.AdminGetUserByID(req.UserID)
 	if err != nil {
 		response.Fail(c, http.StatusNotFound, nil, constant.UserNotExist)
 		return

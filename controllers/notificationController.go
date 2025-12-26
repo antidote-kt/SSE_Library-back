@@ -123,3 +123,38 @@ func MarkNotification(c *gin.Context) {
 	// 构建响应
 	response.Success(c, nil, constant.MarkReadSuccess)
 }
+
+func GetUnreadMessage(c *gin.Context) {
+	// 声明请求参数结构体并解析参数
+	var request dto.GetUnreadMessageDTO
+	if err := c.ShouldBind(&request); err != nil {
+		response.Fail(c, http.StatusBadRequest, nil, constant.ParamParseError)
+		return
+	}
+
+	// 从上下文中获取用户JWT声明信息
+	claims, exists := c.Get(constant.UserClaims)
+	if !exists {
+		// 如果无法获取用户信息，返回401未授权错误
+		response.Fail(c, http.StatusUnauthorized, nil, constant.GetUserInfoFailed)
+		return
+	}
+
+	// 将接口类型转换为具体的声明结构体
+	userClaims := claims.(*utils.MyClaims)
+	// 验证请求的用户ID是否为本人（这一步基本用不到，从始至终会直接用userClaims.UserID作为用户信息）
+	if request.UserID != userClaims.UserID {
+		response.Fail(c, http.StatusBadRequest, nil, constant.NonSelf)
+		return
+	}
+
+	// 根据用户ID和消息类型查询未读消息数量
+	count, err := dao.GetUnreadMessageCount(request.UserID, request.Type)
+	if err != nil {
+		response.Fail(c, http.StatusInternalServerError, nil, err.Error())
+		return
+	}
+
+	// 返回成功响应
+	response.SuccessWithData(c, count, constant.GetUnreadMessageSuccess)
+}

@@ -249,7 +249,7 @@ func SendMessage(c *gin.Context) {
 		SessionID: targetSessionID,
 		SenderID:  currentUserID,
 		Content:   req.Content,
-		Status:    "sent", // 默认为已发送
+		Status:    "unread", // 默认为未读
 	}
 
 	if err := dao.CreateMessage(&message); err != nil {

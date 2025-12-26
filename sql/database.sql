@@ -143,7 +143,7 @@ CREATE TABLE messages (
     session_id BIGINT UNSIGNED NOT NULL COMMENT '所属会话ID (外键, 对应 sessionId)',
     sender_id  BIGINT UNSIGNED NOT NULL COMMENT '发送者ID',
     content TEXT NOT NULL COMMENT '消息内容 (对应 content)',
-    status ENUM('sent', 'delivered', 'read') NOT NULL DEFAULT 'sent' COMMENT '消息状态 (对应 status)',
+    status ENUM('unread', 'read') NOT NULL DEFAULT 'sent' COMMENT '消息状态 (对应 status)',
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '发送时间',
     deleted_at TIMESTAMP NULL DEFAULT NULL COMMENT '软删除标记，（NULL表示未删除）',
     PRIMARY KEY (id),
@@ -194,7 +194,7 @@ CREATE UNIQUE INDEX idx_likes_user_post_unique
 CREATE TABLE notifications (
                                id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '通知唯一标识ID (对应 reminderId)',
                                receiver_id BIGINT UNSIGNED NOT NULL COMMENT '接收通知的用户ID (对应 recieverId)',
-                               type VARCHAR(50) NOT NULL COMMENT '通知类型 (对应 type): comment, like, favorite, system, chat',
+                               type VARCHAR(50) NOT NULL COMMENT '通知类型 (对应 type): comment, like, favorite, chat',
                                content TEXT COMMENT '通知内容 (对应 content)',
                                -- 状态与时间
                                is_read TINYINT(1) NOT NULL DEFAULT 0 COMMENT '是否已读 (对应 isRead): 0-未读, 1-已读',

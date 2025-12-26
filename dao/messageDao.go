@@ -13,6 +13,10 @@ func GetAllMessagesBySession(sessionID uint64) ([]models.Message, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// 将该会话中的所有消息标记为已读
+	db.Model(&models.Message{}).Where("session_id = ?", sessionID).Update("status", "read")
+
 	return messages, nil
 }
 
