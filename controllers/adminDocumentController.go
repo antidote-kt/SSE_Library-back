@@ -44,11 +44,6 @@ func AdminModifyDocumentStatus(c *gin.Context) {
 		document.Status = *request.Status
 	}
 
-	// 如果请求中包含名称更新信息，则更新文档名称
-	if request.Name != nil {
-		document.Name = *request.Name
-	}
-
 	// 更新数据库中的文档信息
 	if err := dao.UpdateDocument(document); err != nil {
 		// 文档更新失败，返回错误响应

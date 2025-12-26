@@ -57,9 +57,8 @@ type SearchDocumentDTO struct {
 	Year *string `form:"year,omitempty"`
 }
 type AdminModifyDocumentStatusRequest struct {
-	DocumentID uint64  `form:"documentId"`
-	Name       *string `form:"name,omitempty"`
-	Status     *string `form:"status"`
+	DocumentID uint64  `json:"documentId"`
+	Status     *string `json:"status"`
 }
 type DocumentBriefDTO struct {
 	Name        string `json:"name"`
