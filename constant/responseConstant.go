@@ -167,11 +167,11 @@ const (
 
 // 评论成功相关常量
 const (
-	MsgCommentPostSuccess     = "评论发表成功"
-	MsgCommentDeleteSuccess   = "删除评论成功"
-	MsgGetCommentListSuccess  = "获取评论列表成功"
-	MsgGetAllCommentsSuccess  = "获取所有评论成功"
-	MsgGetUserCommentsSuccess = "获取用户评论成功"
+	MsgCommentPostSuccess      = "评论发表成功"
+	MsgCommentDeleteSuccess    = "删除评论成功"
+	MsgGetCommentListSuccess   = "获取评论列表成功"
+	MsgGetAllCommentsSuccess   = "获取所有评论成功"
+	MsgGetUserCommentsSuccess  = "获取用户评论成功"
 	MsgGetSingleCommentSuccess = "获取单条评论成功"
 )
 
@@ -199,11 +199,13 @@ const (
 )
 
 const (
-	GetNotificationSuccess = "成功获取通知"
-	NotificationIDInvalid  = "通知ID无效"
-	NotificationNotExist   = "通知不存在"
-	MarkReadFailed         = "标记已读失败"
-	MarkReadSuccess        = "标记已读成功"
+	GetNotificationSuccess  = "成功获取通知"
+	NotificationIDInvalid   = "通知ID无效"
+	NotificationNotExist    = "通知不存在"
+	MarkReadFailed          = "标记已读失败"
+	MarkReadSuccess         = "标记已读成功"
+	InvalidMessageType      = "消息类型无效"
+	GetUnreadMessageSuccess = "获取总的未读消息数量成功"
 )
 
 // 帖子相关常量

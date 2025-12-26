@@ -88,7 +88,7 @@ func GetPostList(c *gin.Context) {
 // GetPostDetail 获取帖子详情接口
 func GetPostDetail(c *gin.Context) {
 	// 1. 获取帖子ID
-	var postIDstr = c.Param("post_id")
+	var postIDstr = c.Param("postId")
 	postID, _ := strconv.ParseUint(postIDstr, 10, 64)
 
 	// 2. 调用 DAO 获取帖子详情
