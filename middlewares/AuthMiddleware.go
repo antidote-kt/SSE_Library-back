@@ -37,7 +37,9 @@ func AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		// 4. 将当前请求的用户信息保存到请求的上下文c上，后续的处理函数就可以通过c.Get("user_claims")来获取当前请求的用户信息
+		// 4. 中间件验证完将当前请求的用户信息保存到请求的上下文c上，后续的处理函数就可以通过c.Get("user_claims")来获取当前请求的用户信息
+		// claims := c.Get("user_claims") 之后还需要 userClaims := claims.(*utils.MyClaims)来将接口类型转换为具体的声明结构体
+		// 此时就可对userClaims进行点下标访问用户信息
 		c.Set("user_claims", claims)
 
 		c.Next() // 放行，处理后续的请求
