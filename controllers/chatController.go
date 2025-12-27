@@ -164,6 +164,40 @@ func SearchChatMessages(c *gin.Context) {
 	response.SuccessWithData(c, responseData, constant.GetChatMessageSuccess)
 }
 
+// CreateChatSession 创建聊天会话接口
+// POST /api/createChat
+func CreateChatSession(c *gin.Context) {
+	var req dto.CreateChatSessionDTO
+
+	// 1. 绑定参数
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Fail(c, http.StatusBadRequest, nil, constant.ParamParseError)
+		return
+	}
+
+	// 2. 验证参数（req.SenderID必须和用户本人一致）
+	claims, exists := c.Get(constant.UserClaims)
+	if !exists {
+		response.Fail(c, http.StatusUnauthorized, nil, constant.GetUserInfoFailed)
+		return
+	}
+	userClaims := claims.(*utils.MyClaims)
+	if req.SenderID != nil && *req.SenderID != userClaims.UserID {
+		response.Fail(c, http.StatusUnauthorized, nil, constant.NonSelf)
+		return
+	}
+
+	// 3. 创建会话
+	session := models.Session{
+		User1ID: *req.SenderID,
+		User2ID: *req.ReceiverID,
+	}
+	if err := dao.CreateSession(&session); err != nil {
+		response.Fail(c, http.StatusInternalServerError, nil, constant.CreateNewSessionFailed)
+	}
+
+}
+
 // SendMessage 发送信息接口
 // POST /api/chat/message
 func SendMessage(c *gin.Context) {
@@ -279,7 +313,7 @@ func SendMessage(c *gin.Context) {
 		"type":         "chat_message", // 消息类型标记
 	}
 
-	// 推送给接收者 (如果在线)
+	// 7.1 推送给接收者 (如果在线) 以及本人，实现客户端实时接收
 	// 注意：这里 receiverID 需要根据逻辑获取 (如果聊天信息是通过SessionID发送的，需要查Session找对方ID；否则直接以ReceiverID为准)
 	var realReceiverID uint64
 	if req.ReceiverID != nil && *req.ReceiverID != 0 {
@@ -300,8 +334,22 @@ func SendMessage(c *gin.Context) {
 		Data:       wsData,
 	})
 	if err != nil {
-		// 仅表示实时推送失败，但消息已持久化，接收者下次上线时可通过 GetChatMessages 拉取历史消息
-		response.Fail(c, http.StatusInternalServerError, nil, constant.SendRealTimeMsgFailed)
+		// 实时推送失败，但消息已持久化，接收者下次上线时可通过 GetChatMessages 拉取历史消息
+		// 因此仅打印日志不返回错误
+		log.Printf("WS推送给接收者 %d 失败(可能离线): %v", realReceiverID, err)
+	}
+
+	// 7.2 推送给发送者
+	// 这能实现“多端同步”：如果你在手机上发了消息，电脑端的聊天窗口也能实时收到这条发出的消息并上屏。
+	err = utils.WSManager.SendToUser(currentUserID, utils.WSMessage{
+		Type:       "chat_message",
+		ReceiverID: currentUserID, // 目标是发送者自己
+		Data:       wsData,
+	})
+	if err != nil {
+		// 实时推送失败，但消息已持久化，接收者下次上线时可通过 GetChatMessages 拉取历史消息
+		// 因此仅打印日志不返回错误
+		log.Printf("WS推送给本人 %d 失败: %v", currentUserID, err)
 	}
 
 	// 8. 返回成功响应

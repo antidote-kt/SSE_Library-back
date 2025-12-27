@@ -98,9 +98,9 @@ func GetUnreadMessageCount(userId uint64, messageType string) (int64, error) {
 		err := db.Model(&models.Message{}).
 			Joins("JOIN sessions ON messages.session_id = sessions.id").
 			Where("sessions.user1_id = ? OR sessions.user2_id = ?", userId, userId). // 确保是该用户的会话
-			Where("messages.status = ?", "unread"). // 状态未读
-			Where("messages.sender_id != ?", userId). // 发送者不是自己
-			Count(&count).Error // GORM 在使用 db.Model(&models.Message{}) 配合 Joins 和 Count 时会自动生成Select("messages.*")
+			Where("messages.status = ?", "unread").                                  // 状态未读
+			Where("messages.sender_id != ?", userId).                                // 发送者不是自己
+			Count(&count).Error                                                      // GORM 在使用 db.Model(&models.Message{}) 配合 Joins 和 Count 时会自动生成Select("messages.*")
 
 		if err != nil {
 			log.Println("查询聊天未读数失败:", err)

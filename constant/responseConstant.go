@@ -218,4 +218,5 @@ const (
 	PostsObtain              = "帖子列表获取成功"
 	PostNotExist             = "帖子不存在"
 	GetFavoritePostFailed    = "获取收藏帖子列表失败"
+	AlreadyLiked             = "禁止重复点赞"
 )

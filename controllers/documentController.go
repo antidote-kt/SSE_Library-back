@@ -188,10 +188,25 @@ func GetDocumentByID(c *gin.Context) {
 		response.Fail(c, http.StatusInternalServerError, nil, constant.DatabaseError)
 		return
 	}
-	//更新阅读量
+	// 更新阅读量
 	document.ReadCounts++
 	if err := dao.UpdateDocument(document); err != nil {
 		response.Fail(c, http.StatusInternalServerError, nil, constant.DocumentUpdateFail)
+	}
+
+	// 增加浏览次数 (异步执行)
+	go func() {
+		_ = dao.IncrementDocumentViewCount(documentID)
+	}()
+
+	// 记录浏览历史 (异步执行)
+	// 从JWT解析用户信息
+	if claims, exists := c.Get(constant.UserClaims); exists {
+		userClaims := claims.(*utils.MyClaims)
+		go func(uid uint64, sourceID uint64) {
+			// 传入 "document" 类型
+			_ = dao.AddViewHistory(uid, sourceID, "document")
+		}(userClaims.UserID, documentID)
 	}
 
 	// 构建文档详情响应数据结构
@@ -272,16 +287,6 @@ func GetDocumentList(c *gin.Context) {
 		return
 	}
 
-	// 从JWT中间件获取用户信息
-	claims, exists := c.Get(constant.UserClaims)
-	if !exists {
-		response.Fail(c, http.StatusUnauthorized, nil, constant.GetUserInfoFailed)
-		return
-	}
-	userClaims := claims.(*utils.MyClaims)
-	//将路径参数的用户id提取出来并转化为int64类型，与JWT比较看访问的个人主页接口是否与用户本人匹配
-	userID := userClaims.UserID
-
 	// 2. 处理布尔值指针 (默认为 false)
 	isSuggest := false
 	if req.IsSuggest != nil {
@@ -289,7 +294,7 @@ func GetDocumentList(c *gin.Context) {
 	}
 
 	// 3. 调用DAO获取文档列表
-	documents, err := dao.GetDocumentList(isSuggest, req.CategoryID, userID)
+	documents, err := dao.GetDocumentList(isSuggest, req.CategoryID)
 	if err != nil {
 		response.Fail(c, http.StatusInternalServerError, nil, constant.DatabaseError)
 		return

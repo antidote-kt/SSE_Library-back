@@ -118,6 +118,13 @@ func DeleteDocumentWithTx(tx *gorm.DB, document models.Document) error {
 	return nil
 }
 
+// IncrementDocumentViewCount 增加文档浏览量
+func IncrementDocumentViewCount(id uint64) error {
+	db := config.GetDB()
+	// 使用 UpdateColumn 进行原子更新，避免并发冲突，且不更新 UpdatedAt 时间
+	return db.Model(&models.Document{}).Where("id = ?", id).UpdateColumn("view_count", gorm.Expr("view_count + ?", 1)).Error
+}
+
 // SearchDocumentsByParams 根据参数搜索文档，先用key搜索，再进行其他参数过滤
 func SearchDocumentsByParams(request dto.SearchDocumentDTO) ([]models.Document, error) {
 	db := config.GetDB()
@@ -188,22 +195,13 @@ func SearchDocumentsByParams(request dto.SearchDocumentDTO) ([]models.Document, 
 // GetDocumentList 获取文档列表
 // isSuggest: 是否为推荐模式 (true: 返回阅读量前10的文档)
 // categoryID: 分类ID查找特定分类的所有文档 (nil: 默认推荐模式)
-func GetDocumentList(isSuggest bool, categoryID *uint64, userID uint64) ([]models.Document, error) {
+func GetDocumentList(isSuggest bool, categoryID *uint64) ([]models.Document, error) {
 	db := config.GetDB()
 	var documents []models.Document
 	query := db.Model(&models.Document{})
 
 	// 基础条件：只返回状态为Open的文档，且未删除
-	// 验证身份,如果是管理员则不加上述限制
-	user, err := GetUserByID(userID)
-	if err != nil {
-		return nil, err
-	}
-	if user.Role != "admin" {
-		query = query.Where("status = ? AND deleted_at IS NULL", constant.DocumentStatusOpen)
-	} else {
-		query = query.Where("deleted_at IS NULL")
-	}
+	query = query.Where("deleted_at IS NULL")
 
 	// 1. 处理分类筛选 (无论是推荐模式还是普通模式，分类筛选如果传了都应该生效)
 	// 如果不希望在推荐模式下筛选分类，可以将这段移到 else 分支里
@@ -218,7 +216,7 @@ func GetDocumentList(isSuggest bool, categoryID *uint64, userID uint64) ([]model
 		query = query.Order("created_at DESC")
 	}
 
-	err = query.Find(&documents).Error
+	err := query.Find(&documents).Error
 	if err != nil {
 		return nil, err
 	}

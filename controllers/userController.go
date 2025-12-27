@@ -201,7 +201,7 @@ func ChangePassword(c *gin.Context) {
 	}, constant.PasswordUpdateSuccess)
 }
 
-// GetUsers 获取或搜索用户列表
+// GetUsers 聊天界面搜索用户列表
 func GetUsers(c *gin.Context) {
 	var req dto.SearchUsersDTO
 
@@ -211,22 +211,9 @@ func GetUsers(c *gin.Context) {
 		return
 	}
 
-	// 权限验证：从JWT中提取用户身份，并作为参数传给dao.GetUsers
-	claims, exists := c.Get(constant.UserClaims)
-	if !exists {
-		// 如果无法获取用户信息，返回401未授权错误
-		response.Fail(c, http.StatusUnauthorized, nil, constant.GetUserInfoFailed)
-	}
-	userClaims := claims.(*utils.MyClaims)
-
 	// 2. 调用DAO层进行查询
-	users, err := dao.GetUsers(req.Username, req.UserID, userClaims.Role)
+	users, err := dao.SearchUsers(req.Username, req.UserID)
 	if err != nil {
-		// 如果用户不存在
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			response.Fail(c, http.StatusNotFound, nil, constant.UserNotExist)
-			return
-		}
 		// 其他数据库错误
 		response.Fail(c, http.StatusInternalServerError, nil, constant.DatabaseError)
 		return
