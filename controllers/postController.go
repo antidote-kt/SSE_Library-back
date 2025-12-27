@@ -136,11 +136,6 @@ func DoLikePost(c *gin.Context) {
 		response.Fail(c, http.StatusBadRequest, nil, constant.ParamParseError)
 		return
 	}
-	postID, err := strconv.ParseUint(req.PostIDStr, 10, 64)
-	if err != nil {
-		response.Fail(c, http.StatusBadRequest, nil, constant.ParamParseError)
-		return
-	}
 
 	// 2. 从JWT中间件获取用户信息(拿UserID)
 	claims, exists := c.Get(constant.UserClaims)
@@ -151,7 +146,7 @@ func DoLikePost(c *gin.Context) {
 	userClaims := claims.(*utils.MyClaims)
 
 	// 3. 调用 DAO 执行点赞
-	err = dao.LikePost(userClaims.UserID, postID)
+	err := dao.LikePost(userClaims.UserID, req.PostID)
 	if err != nil {
 		if err.Error() == "禁止重复点赞" {
 			response.Fail(c, http.StatusBadRequest, nil, err.Error())
@@ -173,11 +168,6 @@ func DoUnlikePost(c *gin.Context) {
 		response.Fail(c, http.StatusBadRequest, nil, constant.ParamParseError)
 		return
 	}
-	postID, err := strconv.ParseUint(req.PostIDStr, 10, 64)
-	if err != nil {
-		response.Fail(c, http.StatusBadRequest, nil, constant.ParamParseError)
-		return
-	}
 
 	// 从JWT中间件获取用户信息(拿UserID)
 	claims, exists := c.Get(constant.UserClaims)
@@ -188,7 +178,7 @@ func DoUnlikePost(c *gin.Context) {
 	userClaims := claims.(*utils.MyClaims)
 
 	// 2. 调用 DAO
-	err = dao.UnlikePost(userClaims.UserID, postID)
+	err := dao.UnlikePost(userClaims.UserID, req.PostID)
 	if err != nil {
 		if err.Error() == "not liked yet" {
 			response.Fail(c, http.StatusBadRequest, nil, "您尚未点赞，无法取消")
@@ -210,11 +200,6 @@ func GetPostLikeStatus(c *gin.Context) {
 		response.Fail(c, http.StatusBadRequest, nil, constant.ParamParseError)
 		return
 	}
-	postID, err := strconv.ParseUint(req.PostIDStr, 10, 64)
-	if err != nil {
-		response.Fail(c, http.StatusBadRequest, nil, constant.ParamParseError)
-		return
-	}
 
 	// 2. 从JWT中间件获取用户信息(拿UserID)
 	claims, exists := c.Get(constant.UserClaims)
@@ -225,7 +210,7 @@ func GetPostLikeStatus(c *gin.Context) {
 	userClaims := claims.(*utils.MyClaims)
 
 	// 调用 DAO
-	isLiked, err := dao.IsPostLikedByUser(userClaims.UserID, postID)
+	isLiked, err := dao.IsPostLikedByUser(userClaims.UserID, req.PostID)
 	if err != nil {
 		response.Fail(c, http.StatusInternalServerError, nil, constant.DatabaseError)
 		return
@@ -233,7 +218,7 @@ func GetPostLikeStatus(c *gin.Context) {
 
 	response.Success(c, gin.H{
 		"isLiked": isLiked,
-		"postId":  postID,
+		"postId":  req.PostID,
 	}, "获取点赞状态成功")
 }
 

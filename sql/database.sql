@@ -190,7 +190,7 @@ CREATE TABLE post_likes (
                             user_id BIGINT UNSIGNED NOT NULL COMMENT '点赞用户ID',
                             post_id BIGINT UNSIGNED NOT NULL COMMENT '帖子ID',
                             created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '点赞时间',
-                            deleted_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '取消点赞时间',
+                            deleted_at TIMESTAMP NULL DEFAULT NULL COMMENT '取消点赞时间',
                             PRIMARY KEY (id),
                             UNIQUE KEY uk_user_post_like (user_id, post_id),
                             KEY idx_post_id (post_id)
