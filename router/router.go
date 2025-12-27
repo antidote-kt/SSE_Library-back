@@ -64,9 +64,10 @@ func SetupRouter() *gin.Engine {
 			userApi.DELETE("/comment", controllers.DeleteUserComment)      // 用户删除自己的评论（需要认证）
 			userApi.GET("/hotCategories", controllers.GetHotCategories)    // 获取热门分类
 			userApi.GET("/checkFavorite", controllers.CheckFavorite)       // 获取收藏列表
-			authed.POST("/like", controllers.DoLikePost)                   // 点赞帖子
-			authed.DELETE("/like", controllers.DoUnlikePost)               // 取消点赞帖子
-			authed.GET("/checkLike", controllers.GetPostLikeStatus)        // 判断帖子是否已点赞
+			userApi.POST("/like", controllers.DoLikePost)                  // 点赞帖子
+			userApi.DELETE("/like", controllers.DoUnlikePost)              // 取消点赞帖子
+			userApi.GET("/checkLike", controllers.GetPostLikeStatus)       // 判断帖子是否已点赞
+			userApi.GET("/postList/:userId", controllers.GetUserPostList)
 		}
 
 		// 管理员相关操作
@@ -76,9 +77,9 @@ func SetupRouter() *gin.Engine {
 			adminApi.PUT("/user", controllers.UpdateUserStatus)                     //更新用户状态
 			adminApi.GET("/usersList", controllers.GetUsersList)                    // GetUsers同时支持获取列表和搜索
 			adminApi.PUT("/document/status", controllers.AdminModifyDocumentStatus) //管理员修改文档状态
+			adminApi.GET("/docList", controllers.AdminGetDocumentList)              // 管理员获取文档列表
 			adminApi.GET("/comments", controllers.GetAllComments)                   // 管理员获取所有评论（需要认证）
 			adminApi.DELETE("/comment", controllers.DeleteComment)                  // 管理员删除评论（需要认证）
-
 		}
 	}
 

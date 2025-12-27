@@ -158,3 +158,35 @@ func IsPostLikedByUser(userID, postID uint64) (bool, error) {
 	}
 	return count > 0, nil
 }
+
+// IncrementPostCommentCount 增加帖子的评论数
+func IncrementPostCommentCount(postID uint64) error {
+	db := config.GetDB()
+	return db.Model(&models.Post{}).
+		Where("id = ?", postID).
+		Update("comment_count", gorm.Expr("comment_count + ?", 1)).Error
+}
+
+// DecrementPostCommentCount 减少帖子的评论数
+func DecrementPostCommentCount(postID uint64) error {
+	db := config.GetDB()
+	return db.Model(&models.Post{}).
+		Where("id = ?", postID).
+		Update("comment_count", gorm.Expr("CASE WHEN comment_count > 0 THEN comment_count - 1 ELSE 0 END")).Error
+}
+
+// GetPostsByUserID 获取指定用户发布的帖子列表
+func GetPostsByUserID(userID uint64) ([]models.Post, error) {
+	db := config.GetDB()
+	var posts []models.Post
+
+	err := db.Model(&models.Post{}).
+		Where("sender_id = ? AND deleted_at IS NULL", userID).
+		Order("created_at DESC").
+		Find(&posts).Error
+
+	if err != nil {
+		return nil, err
+	}
+	return posts, nil
+}
