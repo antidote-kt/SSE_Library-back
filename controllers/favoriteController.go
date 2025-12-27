@@ -62,6 +62,12 @@ func CollectDocumentOrPost(c *gin.Context) {
 	// 使用通用处理函数处理收藏
 	responseData, err := handleCollectAction(userClaims.UserID, request.SourceID, request.Type)
 	if err != nil {
+		// 如果文档不是公开状态，返回403禁止访问错误
+		if err.Error() == constant.DocumentNotOpen {
+			response.Fail(c, http.StatusForbidden, nil, constant.DocumentNotOpen)
+			return
+		}
+		// 其他错误返回500
 		response.Fail(c, http.StatusInternalServerError, nil, err.Error())
 		return
 	}

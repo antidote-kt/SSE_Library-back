@@ -226,7 +226,20 @@ func GetDocumentList(isSuggest bool, categoryID *uint64, userID uint64) ([]model
 	// 1. 处理分类筛选 (无论是推荐模式还是普通模式，分类筛选如果传了都应该生效)
 	// 如果不希望在推荐模式下筛选分类，可以将这段移到 else 分支里
 	if categoryID != nil && *categoryID != 0 {
-		query = query.Where("category_id = ?", *categoryID)
+		// 获取该分类下的所有子分类（课程）
+		subCategories, err := GetCategoriesByParentID(*categoryID)
+		if err != nil {
+			return nil, err
+		}
+
+		// 构建分类ID列表：包括当前分类和所有子分类（课程）
+		categoryIDs := []uint64{*categoryID}
+		for _, subCategory := range subCategories {
+			categoryIDs = append(categoryIDs, subCategory.ID)
+		}
+
+		// 查询该分类及其所有子分类（课程）下的文档
+		query = query.Where("category_id IN ?", categoryIDs)
 	} else if isSuggest {
 		// 2. 如果没传分类，那么看是否为推荐模式
 		// 推荐模式：返回阅读量 (read_counts) 前 10 的文档

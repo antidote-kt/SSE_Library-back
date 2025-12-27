@@ -131,13 +131,18 @@ func PostComment(c *gin.Context) {
 
 	switch sourceType {
 	case "document":
-		_, err = dao.GetDocumentByID(sourceID)
+		document, err := dao.GetDocumentByID(sourceID)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				response.Fail(c, http.StatusNotFound, nil, constant.MsgRecordNotFound)
 				return
 			}
 			response.Fail(c, http.StatusInternalServerError, nil, constant.MsgDatabaseQueryFailed)
+			return
+		}
+		// 检查文档状态是否为open，如果不是open状态则不能评论
+		if document.Status != constant.DocumentStatusOpen {
+			response.Fail(c, http.StatusForbidden, nil, constant.DocumentNotOpen)
 			return
 		}
 	case "post":
