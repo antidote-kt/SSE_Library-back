@@ -111,3 +111,56 @@ func GetPostDetail(c *gin.Context) {
 	response.SuccessWithData(c, postDetail, constant.GetPostDetailSuccess)
 
 }
+
+// GetUserPostList 获取用户的帖子列表（包括收藏的帖子和自己发布的帖子）
+// GET /api/user/postList/:userId
+func GetUserPostList(c *gin.Context) {
+	// 1. 获取路径参数中的userId
+	userIDStr := c.Param("userId")
+	userID, err := strconv.ParseUint(userIDStr, 10, 64)
+	if err != nil {
+		response.Fail(c, http.StatusBadRequest, nil, constant.UserIDFormatError)
+		return
+	}
+
+	// 2. 获取当前登录用户身份 (JWT)
+	claims, exists := c.Get(constant.UserClaims)
+	if !exists {
+		response.Fail(c, http.StatusUnauthorized, nil, constant.GetUserInfoFailed)
+		return
+	}
+	userClaims := claims.(*utils.MyClaims)
+
+	// 3. 验证请求的用户ID是否与JWT中的用户ID一致（防止越权操作）
+	if userClaims.UserID != userID {
+		response.Fail(c, http.StatusUnauthorized, nil, constant.NonSelf)
+		return
+	}
+
+	// 4. 验证用户是否存在
+	_, err = dao.GetUserByID(userID)
+	if err != nil {
+		response.Fail(c, http.StatusNotFound, nil, constant.UserNotExist)
+		return
+	}
+
+	// 5. 获取用户收藏的帖子列表
+	collectPosts, err := dao.GetFavoritePostsByUserID(userID)
+	if err != nil {
+		response.Fail(c, http.StatusInternalServerError, nil, constant.DatabaseError)
+		return
+	}
+
+	// 6. 获取用户发布的帖子列表
+	myPosts, err := dao.GetPostsByUserID(userID)
+	if err != nil {
+		response.Fail(c, http.StatusInternalServerError, nil, constant.DatabaseError)
+		return
+	}
+
+	// 7. 构建响应数据
+	userPostListResponse := response.BuildUserPostListResponse(collectPosts, myPosts)
+
+	// 8. 返回成功响应
+	response.SuccessWithData(c, userPostListResponse, constant.PostsObtain)
+}

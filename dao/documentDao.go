@@ -186,6 +186,23 @@ func SearchDocumentsByParams(request dto.SearchDocumentDTO) ([]models.Document, 
 	return documents, nil
 }
 
+// GetAllDocuments 获取所有未删除的文档（管理员使用，不过滤状态）
+func GetAllDocuments() ([]models.Document, error) {
+	db := config.GetDB()
+	var documents []models.Document
+
+	// 只过滤软删除的文档，不过滤状态
+	err := db.Model(&models.Document{}).
+		Where("deleted_at IS NULL").
+		Order("created_at DESC").
+		Find(&documents).Error
+
+	if err != nil {
+		return nil, err
+	}
+	return documents, nil
+}
+
 // GetDocumentList 获取文档列表
 // isSuggest: 是否为推荐模式 (true: 返回阅读量前10的文档)
 // categoryID: 分类ID查找特定分类的所有文档 (nil: 默认推荐模式)

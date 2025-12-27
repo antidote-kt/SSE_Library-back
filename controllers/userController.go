@@ -203,6 +203,18 @@ func ChangePassword(c *gin.Context) {
 
 // GetUsers 获取或搜索用户列表
 func GetUsers(c *gin.Context) {
+	// 验证管理员身份
+	claims, exists := c.Get(constant.UserClaims)
+	if !exists {
+		response.Fail(c, http.StatusUnauthorized, nil, constant.GetUserInfoFailed)
+		return
+	}
+	userClaims := claims.(*utils.MyClaims)
+	if userClaims.Role != "admin" {
+		response.Fail(c, http.StatusForbidden, nil, constant.NoPermission)
+		return
+	}
+
 	var req dto.SearchUsersDTO
 
 	// 1. 绑定可选的Query参数
@@ -210,14 +222,6 @@ func GetUsers(c *gin.Context) {
 		response.Fail(c, http.StatusBadRequest, nil, constant.ParamParseError)
 		return
 	}
-
-	// 权限验证：从JWT中提取用户身份，并作为参数传给dao.GetUsers
-	claims, exists := c.Get(constant.UserClaims)
-	if !exists {
-		// 如果无法获取用户信息，返回401未授权错误
-		response.Fail(c, http.StatusUnauthorized, nil, constant.GetUserInfoFailed)
-	}
-	userClaims := claims.(*utils.MyClaims)
 
 	// 2. 调用DAO层进行查询
 	users, err := dao.GetUsers(req.Username, req.UserID, userClaims.Role)

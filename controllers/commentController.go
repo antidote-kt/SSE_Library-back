@@ -294,6 +294,18 @@ func GetDocumentComments(c *gin.Context) {
 
 // GET /api/admin/comments
 func GetAllComments(c *gin.Context) {
+	// 验证管理员身份
+	claims, exists := c.Get(constant.UserClaims)
+	if !exists {
+		response.Fail(c, http.StatusUnauthorized, nil, constant.GetUserInfoFailed)
+		return
+	}
+	userClaims := claims.(*utils.MyClaims)
+	if userClaims.Role != "admin" {
+		response.Fail(c, http.StatusForbidden, nil, constant.NoPermission)
+		return
+	}
+
 	comments, err := dao.GetAllCommentsWithUserAndDocument()
 	if err != nil {
 		response.Fail(c, constant.StatusInternalServerError, nil, constant.MsgGetCommentListFailed)
@@ -307,6 +319,18 @@ func GetAllComments(c *gin.Context) {
 
 // DELETE /api/admin/comment
 func DeleteComment(c *gin.Context) {
+	// 验证管理员身份
+	claims, exists := c.Get(constant.UserClaims)
+	if !exists {
+		response.Fail(c, http.StatusUnauthorized, nil, constant.GetUserInfoFailed)
+		return
+	}
+	userClaims := claims.(*utils.MyClaims)
+	if userClaims.Role != "admin" {
+		response.Fail(c, http.StatusForbidden, nil, constant.NoPermission)
+		return
+	}
+
 	commentIDStr, err := getCommentIDFromQuery(c)
 	if err != nil {
 		response.Fail(c, constant.StatusBadRequest, nil, err.Error())
