@@ -194,8 +194,10 @@ func CreateChatSession(c *gin.Context) {
 	}
 	if err := dao.CreateSession(&session); err != nil {
 		response.Fail(c, http.StatusInternalServerError, nil, constant.CreateNewSessionFailed)
+		return
 	}
 
+	response.Success(c, nil, constant.CreateNewSessionSuccess)
 }
 
 // SendMessage 发送信息接口

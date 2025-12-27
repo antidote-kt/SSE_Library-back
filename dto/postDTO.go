@@ -16,6 +16,6 @@ type GetPostListDTO struct {
 
 // LikePostDTO 点赞帖子请求参数
 type LikePostDTO struct {
-	PostIDStr string `form:"postId" binding:"required"`
-	UserID    uint64 `form:"userId" binding:"required"`
+	PostID uint64 `form:"postId" binding:"required"`
+	UserID uint64 `form:"userId" binding:"required"`
 }

@@ -203,18 +203,6 @@ func ChangePassword(c *gin.Context) {
 
 // GetUsers 聊天界面搜索用户列表
 func GetUsers(c *gin.Context) {
-	// 验证管理员身份
-	claims, exists := c.Get(constant.UserClaims)
-	if !exists {
-		response.Fail(c, http.StatusUnauthorized, nil, constant.GetUserInfoFailed)
-		return
-	}
-	userClaims := claims.(*utils.MyClaims)
-	if userClaims.Role != "admin" {
-		response.Fail(c, http.StatusForbidden, nil, constant.NoPermission)
-		return
-	}
-
 	var req dto.SearchUsersDTO
 
 	// 1. 绑定可选的Query参数

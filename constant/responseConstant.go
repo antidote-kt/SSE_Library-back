@@ -192,6 +192,7 @@ const (
 	SendRealTimeMsgFailed     = "实时消息发送失败"
 	SendMsgSuccess            = "消息发送成功"
 	GetSessionListSuccess     = "获取会话列表成功"
+	CreateNewSessionSuccess   = "创建新会话成功"
 )
 
 // websocket相关常量
