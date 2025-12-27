@@ -7,11 +7,24 @@ import (
 	"github.com/antidote-kt/SSE_Library-back/dao"
 	"github.com/antidote-kt/SSE_Library-back/dto"
 	"github.com/antidote-kt/SSE_Library-back/response"
+	"github.com/antidote-kt/SSE_Library-back/utils"
 	"github.com/gin-gonic/gin"
 )
 
 // UpdateUserStatus 管理员修改指定用户的状态
 func UpdateUserStatus(c *gin.Context) {
+	// 验证管理员身份
+	claims, exists := c.Get(constant.UserClaims)
+	if !exists {
+		response.Fail(c, http.StatusUnauthorized, nil, constant.GetUserInfoFailed)
+		return
+	}
+	userClaims := claims.(*utils.MyClaims)
+	if userClaims.Role != "admin" {
+		response.Fail(c, http.StatusForbidden, nil, constant.NoPermission)
+		return
+	}
+
 	var req dto.UpdateUserStatusDTO
 
 	// 1. 绑定Query参数
