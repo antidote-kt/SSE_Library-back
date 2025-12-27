@@ -201,7 +201,7 @@ func ChangePassword(c *gin.Context) {
 	}, constant.PasswordUpdateSuccess)
 }
 
-// GetUsers 获取或搜索用户列表
+// GetUsers 聊天界面搜索用户列表
 func GetUsers(c *gin.Context) {
 	// 验证管理员身份
 	claims, exists := c.Get(constant.UserClaims)
@@ -224,13 +224,8 @@ func GetUsers(c *gin.Context) {
 	}
 
 	// 2. 调用DAO层进行查询
-	users, err := dao.GetUsers(req.Username, req.UserID, userClaims.Role)
+	users, err := dao.SearchUsers(req.Username, req.UserID)
 	if err != nil {
-		// 如果用户不存在
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			response.Fail(c, http.StatusNotFound, nil, constant.UserNotExist)
-			return
-		}
 		// 其他数据库错误
 		response.Fail(c, http.StatusInternalServerError, nil, constant.DatabaseError)
 		return

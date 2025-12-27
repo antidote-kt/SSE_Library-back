@@ -67,3 +67,34 @@ func UpdateUserStatus(c *gin.Context) {
 	// 6. 构造并返回更新后的用户信息
 	response.SuccessWithData(c, userBrief, constant.UpdateUserStatusSuccess)
 }
+
+// GetUsersList 获取用户列表
+// GET /api/admin/usersList
+func GetUsersList(c *gin.Context) {
+	// 直接返回所有用户
+	users, err := dao.GetUsersList()
+	if err != nil {
+		response.Fail(c, http.StatusInternalServerError, nil, constant.DatabaseError)
+		return
+	}
+
+	// 将用户列表转换为response层的响应结构列表
+	var userResponses []response.UserBriefResponse
+	for _, user := range users {
+		// 调用已有的 BuildUserBriefResponse 函数处理单个用户
+		userBrief := response.UserBriefResponse{
+			UserID:     user.ID,
+			Username:   user.Username,
+			UserAvatar: utils.GetFileURL(user.Avatar),
+			Status:     user.Status,
+			CreateTime: user.CreatedAt.Format("2006-01-02 15:04:05"),
+			Email:      user.Email,
+			Role:       user.Role,
+		}
+		// 将处理后的用户信息添加到列表中
+		userResponses = append(userResponses, userBrief)
+	}
+
+	// 返回成功的响应
+	response.SuccessWithData(c, userResponses, constant.GetUserSuccess)
+}

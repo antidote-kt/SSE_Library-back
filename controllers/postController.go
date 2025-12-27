@@ -97,19 +97,144 @@ func GetPostDetail(c *gin.Context) {
 		response.Fail(c, http.StatusInternalServerError, nil, constant.DatabaseError)
 		return
 	}
-	// 3. 查询帖子相关文档
+
+	// 3. 增加浏览量 (异步)
+	go func() {
+		_ = dao.IncrementPostViewCount(postID)
+	}()
+
+	// 4. 记录浏览历史 (异步)
+	if claims, exists := c.Get(constant.UserClaims); exists {
+		userClaims := claims.(*utils.MyClaims)
+		go func(uid uint64, pid uint64) {
+			// 传入 "post" 类型
+			_ = dao.AddViewHistory(uid, pid, "post")
+		}(userClaims.UserID, postID)
+	}
+
+	// 5. 查询帖子相关文档
 	postdocs, err := dao.GetDocumentsByPostID(post.ID)
 	if err != nil {
 		response.Fail(c, http.StatusInternalServerError, nil, constant.DatabaseError)
 		return
 	}
 
-	// 4. 调用response层构建响应数据
+	// 6. 调用response层构建响应数据
 	postDetail := response.BuildPostDetailResponse(post, postdocs)
 
-	// 5. 返回成功响应
+	// 7. 返回成功响应
 	response.SuccessWithData(c, postDetail, constant.GetPostDetailSuccess)
 
+}
+
+// DoLikePost 点赞帖子
+func DoLikePost(c *gin.Context) {
+	// 1. 获取 PostID (Body参数)
+	var req dto.LikePostDTO
+	// 绑定查询参数
+	if err := c.ShouldBind(&req); err != nil {
+		response.Fail(c, http.StatusBadRequest, nil, constant.ParamParseError)
+		return
+	}
+	postID, err := strconv.ParseUint(req.PostIDStr, 10, 64)
+	if err != nil {
+		response.Fail(c, http.StatusBadRequest, nil, constant.ParamParseError)
+		return
+	}
+
+	// 2. 从JWT中间件获取用户信息(拿UserID)
+	claims, exists := c.Get(constant.UserClaims)
+	if !exists {
+		response.Fail(c, http.StatusUnauthorized, nil, constant.GetUserInfoFailed)
+		return
+	}
+	userClaims := claims.(*utils.MyClaims)
+
+	// 3. 调用 DAO 执行点赞
+	err = dao.LikePost(userClaims.UserID, postID)
+	if err != nil {
+		if err.Error() == "禁止重复点赞" {
+			response.Fail(c, http.StatusBadRequest, nil, err.Error())
+			return
+		}
+		response.Fail(c, http.StatusInternalServerError, nil, "点赞失败: "+err.Error())
+		return
+	}
+
+	response.Success(c, nil, "点赞成功")
+}
+
+// DoUnlikePost 取消点赞
+func DoUnlikePost(c *gin.Context) {
+	// 1. 获取 PostID (Body参数)
+	var req dto.LikePostDTO
+	// 绑定查询参数
+	if err := c.ShouldBind(&req); err != nil {
+		response.Fail(c, http.StatusBadRequest, nil, constant.ParamParseError)
+		return
+	}
+	postID, err := strconv.ParseUint(req.PostIDStr, 10, 64)
+	if err != nil {
+		response.Fail(c, http.StatusBadRequest, nil, constant.ParamParseError)
+		return
+	}
+
+	// 从JWT中间件获取用户信息(拿UserID)
+	claims, exists := c.Get(constant.UserClaims)
+	if !exists {
+		response.Fail(c, http.StatusUnauthorized, nil, constant.GetUserInfoFailed)
+		return
+	}
+	userClaims := claims.(*utils.MyClaims)
+
+	// 2. 调用 DAO
+	err = dao.UnlikePost(userClaims.UserID, postID)
+	if err != nil {
+		if err.Error() == "not liked yet" {
+			response.Fail(c, http.StatusBadRequest, nil, "您尚未点赞，无法取消")
+			return
+		}
+		response.Fail(c, http.StatusInternalServerError, nil, "取消点赞失败")
+		return
+	}
+
+	response.Success(c, nil, "取消点赞成功")
+}
+
+// GetPostLikeStatus 查询当前用户是否点赞
+func GetPostLikeStatus(c *gin.Context) {
+	// 1. 获取 PostID (Body参数)
+	var req dto.LikePostDTO
+	// 绑定查询参数
+	if err := c.ShouldBind(&req); err != nil {
+		response.Fail(c, http.StatusBadRequest, nil, constant.ParamParseError)
+		return
+	}
+	postID, err := strconv.ParseUint(req.PostIDStr, 10, 64)
+	if err != nil {
+		response.Fail(c, http.StatusBadRequest, nil, constant.ParamParseError)
+		return
+	}
+
+	// 2. 从JWT中间件获取用户信息(拿UserID)
+	claims, exists := c.Get(constant.UserClaims)
+	if !exists {
+		response.Fail(c, http.StatusUnauthorized, nil, constant.GetUserInfoFailed)
+		return
+	}
+	userClaims := claims.(*utils.MyClaims)
+
+	// 调用 DAO
+	isLiked, err := dao.IsPostLikedByUser(userClaims.UserID, postID)
+	if err != nil {
+		response.Fail(c, http.StatusInternalServerError, nil, constant.DatabaseError)
+		return
+	}
+
+	response.Success(c, gin.H{
+		"isLiked": isLiked,
+		"postId":  postID,
+	}, "获取点赞状态成功")
 }
 
 // GetUserPostList 获取用户的帖子列表（包括收藏的帖子和自己发布的帖子）
@@ -146,10 +271,6 @@ func GetUserPostList(c *gin.Context) {
 
 	// 5. 获取用户收藏的帖子列表
 	collectPosts, err := dao.GetFavoritePostsByUserID(userID)
-	if err != nil {
-		response.Fail(c, http.StatusInternalServerError, nil, constant.DatabaseError)
-		return
-	}
 
 	// 6. 获取用户发布的帖子列表
 	myPosts, err := dao.GetPostsByUserID(userID)

@@ -13,3 +13,9 @@ type GetPostListDTO struct {
 	Key   string `form:"key"`   // 搜索关键词
 	Order string `form:"order"` // 排序方式: time, hot
 }
+
+// LikePostDTO 点赞帖子请求参数
+type LikePostDTO struct {
+	PostIDStr string `form:"postId" binding:"required"`
+	UserID    uint64 `form:"userId" binding:"required"`
+}
