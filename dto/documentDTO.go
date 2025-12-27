@@ -53,7 +53,7 @@ type SearchDocumentDTO struct {
 	TypeOfKey *string `form:"typeOfKey,omitempty"`
 	// 筛选文件类型
 	Type *string `form:"type,omitempty"`
-	// 筛选创作时间s
+	// 筛选创作时间
 	Year *string `form:"year,omitempty"`
 }
 type AdminModifyDocumentStatusRequest struct {

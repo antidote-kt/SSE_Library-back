@@ -3,7 +3,6 @@ package controllers
 import (
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"strconv"
 
@@ -444,7 +443,6 @@ func CheckFavorite(c *gin.Context) {
 	userIdStr := c.Query("userId")
 	userId, err := strconv.ParseUint(userIdStr, 10, 64)
 	if err != nil {
-		log.Fatalf(err.Error())
 		response.Fail(c, http.StatusBadRequest, nil, constant.UserIDFormatError)
 		return
 	}
