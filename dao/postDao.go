@@ -80,3 +80,19 @@ func GetPostList(key string, order string) ([]models.Post, error) {
 	}
 	return posts, nil
 }
+
+// IncrementPostCommentCount 增加帖子的评论数
+func IncrementPostCommentCount(postID uint64) error {
+	db := config.GetDB()
+	return db.Model(&models.Post{}).
+		Where("id = ?", postID).
+		Update("comment_count", gorm.Expr("comment_count + ?", 1)).Error
+}
+
+// DecrementPostCommentCount 减少帖子的评论数
+func DecrementPostCommentCount(postID uint64) error {
+	db := config.GetDB()
+	return db.Model(&models.Post{}).
+		Where("id = ?", postID).
+		Update("comment_count", gorm.Expr("CASE WHEN comment_count > 0 THEN comment_count - 1 ELSE 0 END")).Error
+}
