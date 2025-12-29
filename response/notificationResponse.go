@@ -10,7 +10,9 @@ type NotificationResponse struct {
 	ReceiverID uint64 `json:"receiverId"`
 	ReminderID uint64 `json:"reminderId"`
 	SendTime   string `json:"sendTime"`
-	Type       string `json:"type"`
+	Type       string `json:"type"`       // comment, like, favorite
+	SourceID   uint64 `json:"sourceId"`   // documentId 或 postId
+	SourceType string `json:"sourceType"` // "document" 或 "post"
 }
 
 func BuildNotificationResponse(notification models.Notification) NotificationResponse {
@@ -21,6 +23,8 @@ func BuildNotificationResponse(notification models.Notification) NotificationRes
 		ReminderID: notification.ID,
 		SendTime:   notification.CreatedAt.Format("2006-01-02 15:04:05"),
 		Type:       notification.Type,
+		SourceID:   notification.SourceID,
+		SourceType: notification.SourceType,
 	}
 }
 

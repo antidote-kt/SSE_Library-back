@@ -220,4 +220,8 @@ const (
 	PostNotExist             = "帖子不存在"
 	GetFavoritePostFailed    = "获取收藏帖子列表失败"
 	AlreadyLiked             = "禁止重复点赞"
+	DeletePostFailed         = "删除帖子失败"
+	DeletePostSuccess        = "删除帖子成功"
+	PostIDNotNull            = "postId 不能为空"
+	PostDeleteNotAllowed     = "无权删除他人的帖子"
 )

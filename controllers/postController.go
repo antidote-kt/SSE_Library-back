@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/antidote-kt/SSE_Library-back/response"
 	"github.com/antidote-kt/SSE_Library-back/utils"
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 // CreatePost 发布帖子接口
@@ -269,4 +271,57 @@ func GetUserPostList(c *gin.Context) {
 
 	// 8. 返回成功响应
 	response.SuccessWithData(c, userPostListResponse, constant.PostsObtain)
+}
+
+// DeletePost 删除帖子接口
+// DELETE /api/post
+func DeletePost(c *gin.Context) {
+	// 1. 绑定请求参数
+	var req dto.DeletePostDTO
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Fail(c, http.StatusBadRequest, nil, constant.ParamParseError)
+		return
+	}
+
+	// 2. 验证 PostID 是否有效
+	if req.PostID == 0 {
+		response.Fail(c, http.StatusBadRequest, nil, constant.PostIDNotNull)
+		return
+	}
+	postID := req.PostID
+
+	// 3. 获取当前登录用户身份 (JWT)
+	claims, exists := c.Get(constant.UserClaims)
+	if !exists {
+		response.Fail(c, http.StatusUnauthorized, nil, constant.GetUserInfoFailed)
+		return
+	}
+	userClaims := claims.(*utils.MyClaims)
+
+	// 4. 验证帖子是否存在，并检查是否为发帖人
+	post, err := dao.GetPostByID(postID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			response.Fail(c, http.StatusNotFound, nil, constant.PostNotExist)
+			return
+		}
+		response.Fail(c, http.StatusInternalServerError, nil, constant.DatabaseError)
+		return
+	}
+
+	// 5. 验证是否为发帖人（只有发帖人才能删除）
+	if post.SenderID != userClaims.UserID {
+		response.Fail(c, http.StatusForbidden, nil, constant.PostDeleteNotAllowed)
+		return
+	}
+
+	// 6. 调用 DAO 删除帖子（包括评论和文档关联）
+	err = dao.DeletePostWithTx(postID)
+	if err != nil {
+		response.Fail(c, http.StatusInternalServerError, nil, constant.DeletePostFailed)
+		return
+	}
+
+	// 7. 返回成功响应
+	response.Success(c, nil, constant.DeletePostSuccess)
 }
