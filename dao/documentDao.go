@@ -219,7 +219,7 @@ func GetDocumentList(isSuggest bool, categoryID *uint64) ([]models.Document, err
 	query := db.Model(&models.Document{})
 
 	// 基础条件：只返回状态为Open的文档，且未删除
-	query = query.Where("deleted_at IS NULL")
+	query = query.Where("status = ? AND deleted_at IS NULL", constant.DocumentStatusOpen)
 
 	// 1. 处理分类筛选 (无论是推荐模式还是普通模式，分类筛选如果传了都应该生效)
 	// 如果不希望在推荐模式下筛选分类，可以将这段移到 else 分支里

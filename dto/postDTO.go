@@ -19,3 +19,7 @@ type LikePostDTO struct {
 	PostID uint64 `form:"postId" binding:"required"`
 	UserID uint64 `form:"userId" binding:"required"`
 }
+
+type DeletePostDTO struct {
+	PostID uint64 `json:"postId"`
+}

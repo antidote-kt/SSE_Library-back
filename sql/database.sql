@@ -200,18 +200,21 @@ CREATE UNIQUE INDEX idx_likes_user_post_unique
     ON post_likes (user_id, post_id, (IF(deleted_at IS NULL, 1, NULL)));
 
 CREATE TABLE notifications (
-                               id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '通知唯一标识ID (对应 reminderId)',
-                               receiver_id BIGINT UNSIGNED NOT NULL COMMENT '接收通知的用户ID (对应 recieverId)',
-                               type VARCHAR(50) NOT NULL COMMENT '通知类型 (对应 type): comment, like, favorite, chat',
-                               content TEXT COMMENT '通知内容 (对应 content)',
-                               -- 状态与时间
-                               is_read TINYINT(1) NOT NULL DEFAULT 0 COMMENT '是否已读 (对应 isRead): 0-未读, 1-已读',
-                               created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '发送时间 (对应 sendTime)',
-                               deleted_at TIMESTAMP NULL DEFAULT NULL COMMENT '软删除标记',
-                               PRIMARY KEY (id),
-                               KEY idx_receiver_status (receiver_id, is_read), -- 常用查询：查某用户的未读消息
-                               KEY idx_receiver_type (receiver_id, type),      -- 常用查询：查某用户的特定类型消息
-                               KEY idx_created_at (created_at)                 -- 用于按时间排序
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '通知唯一标识ID (对应 reminderId)',
+    receiver_id BIGINT UNSIGNED NOT NULL COMMENT '接收通知的用户ID (对应 recieverId)',
+    type VARCHAR(50) NOT NULL COMMENT '通知类型 (对应 type): comment, like, favorite, chat',
+    content TEXT COMMENT '通知内容 (对应 content)',    
+    -- 状态与时间
+    is_read TINYINT(1) NOT NULL DEFAULT 0 COMMENT '是否已读 (对应 isRead): 0-未读, 1-已读',
+    source_id BIGINT UNSIGNED NOT NULL COMMENT '通知来源资源标识ID (对应 documentId或者postId)',
+    source_type VARCHAR(50) NOT NULL COMMENT '通知来源资源类型 : document，post',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '发送时间 (对应 sendTime)',
+    deleted_at TIMESTAMP NULL DEFAULT NULL COMMENT '软删除标记',
+    PRIMARY KEY (id),
+    KEY idx_receiver_status (receiver_id, is_read), -- 常用查询：查某用户的未读消息
+    KEY idx_receiver_type (receiver_id, type),      -- 常用查询：查某用户的特定类型消息
+    KEY idx_created_at (created_at)                 -- 用于按时间排序
 ) COMMENT='用户通知表';
+
 
 
