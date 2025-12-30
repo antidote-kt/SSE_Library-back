@@ -152,3 +152,17 @@ func BuildPostListResponse(posts []models.Post) []PostListResponse {
 	}
 	return responses
 }
+
+// UserPostListResponse 用户帖子列表响应结构
+type UserPostListResponse struct {
+	CollectPostList []PostBriefResponse `json:"collectPostList"`
+	MyPostList      []PostBriefResponse `json:"myPostList"`
+}
+
+// BuildUserPostListResponse 构建用户帖子列表响应
+func BuildUserPostListResponse(collectPosts, myPosts []models.Post) UserPostListResponse {
+	return UserPostListResponse{
+		CollectPostList: BuildPostBriefResponseList(collectPosts),
+		MyPostList:      BuildPostBriefResponseList(myPosts),
+	}
+}

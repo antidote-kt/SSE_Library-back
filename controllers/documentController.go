@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
 	"strconv"
@@ -30,6 +31,18 @@ func ModifyDocument(c *gin.Context) {
 	if err := c.ShouldBind(&request); err != nil {
 		response.Fail(c, http.StatusBadRequest, nil, constant.ParamParseError)
 		return
+	}
+
+	// 解析 tags JSON 字符串为 []string
+	// 如果前端传了 tags 字段（即使是空数组 []），也需要处理标签更新
+	var tags []string
+	hasTagsField := false
+	if request.Tags != "" {
+		hasTagsField = true
+		if err := json.Unmarshal([]byte(request.Tags), &tags); err != nil {
+			response.Fail(c, http.StatusBadRequest, nil, "标签格式错误: "+err.Error())
+			return
+		}
 	}
 
 	// 根据文档ID查找要修改的文档
@@ -128,16 +141,19 @@ func ModifyDocument(c *gin.Context) {
 			return err
 		}
 
-		// 如果请求中包含标签信息，则更新标签映射关系
-		if len(request.Tags) > 0 {
+		// 如果请求中包含标签字段，则更新标签映射关系
+		if hasTagsField {
 			// 删除原有的标签映射关系
 			if err := dao.DeleteDocumentTagByDocumentIDWithTx(tx, document.ID); err != nil {
 				return errors.New(constant.OldTagDeleteFailed)
 			}
-			// 创建新的标签映射关系
-			if err := dao.CreateDocumentTagWithTx(tx, document.ID, request.Tags); err != nil {
-				return err
+			// 如果解析后的标签数组不为空，创建新的标签映射关系
+			if len(tags) > 0 {
+				if err := dao.CreateDocumentTagWithTx(tx, document.ID, tags); err != nil {
+					return err
+				}
 			}
+			// 如果 tags 为空数组，只删除不创建，实现清空标签的效果
 		}
 		return nil
 	})
@@ -188,10 +204,25 @@ func GetDocumentByID(c *gin.Context) {
 		response.Fail(c, http.StatusInternalServerError, nil, constant.DatabaseError)
 		return
 	}
-	//更新阅读量
+	// 更新阅读量
 	document.ReadCounts++
 	if err := dao.UpdateDocument(document); err != nil {
 		response.Fail(c, http.StatusInternalServerError, nil, constant.DocumentUpdateFail)
+	}
+
+	// 增加浏览次数 (异步执行)
+	go func() {
+		_ = dao.IncrementDocumentViewCount(documentID)
+	}()
+
+	// 记录浏览历史 (异步执行)
+	// 从JWT解析用户信息
+	if claims, exists := c.Get(constant.UserClaims); exists {
+		userClaims := claims.(*utils.MyClaims)
+		go func(uid uint64, sourceID uint64) {
+			// 传入 "document" 类型
+			_ = dao.AddViewHistory(uid, sourceID, "document")
+		}(userClaims.UserID, documentID)
 	}
 
 	// 构建文档详情响应数据结构
@@ -272,16 +303,6 @@ func GetDocumentList(c *gin.Context) {
 		return
 	}
 
-	// 从JWT中间件获取用户信息
-	claims, exists := c.Get(constant.UserClaims)
-	if !exists {
-		response.Fail(c, http.StatusUnauthorized, nil, constant.GetUserInfoFailed)
-		return
-	}
-	userClaims := claims.(*utils.MyClaims)
-	//将路径参数的用户id提取出来并转化为int64类型，与JWT比较看访问的个人主页接口是否与用户本人匹配
-	userID := userClaims.UserID
-
 	// 2. 处理布尔值指针 (默认为 false)
 	isSuggest := false
 	if req.IsSuggest != nil {
@@ -289,7 +310,7 @@ func GetDocumentList(c *gin.Context) {
 	}
 
 	// 3. 调用DAO获取文档列表
-	documents, err := dao.GetDocumentList(isSuggest, req.CategoryID, userID)
+	documents, err := dao.GetDocumentList(isSuggest, req.CategoryID)
 	if err != nil {
 		response.Fail(c, http.StatusInternalServerError, nil, constant.DatabaseError)
 		return

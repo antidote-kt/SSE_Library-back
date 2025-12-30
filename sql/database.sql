@@ -53,15 +53,23 @@ CREATE TABLE comments (
 
 
 CREATE TABLE view_histories (
-    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '历史记录ID',
-    user_id BIGINT UNSIGNED NOT NULL COMMENT '用户ID',
-    document_id BIGINT UNSIGNED NOT NULL COMMENT '被浏览对象ID',
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '最后浏览时间',
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    deleted_at TIMESTAMP NULL DEFAULT NULL COMMENT '软删除标记，（NULL表示未删除）',
-    PRIMARY KEY (id),
-    KEY idx_user_view (user_id, document_id)
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '历史记录ID',
+      user_id BIGINT UNSIGNED NOT NULL COMMENT '用户ID',
+      source_id BIGINT UNSIGNED NOT NULL COMMENT '被浏览对象ID',
+      source_type VARCHAR(20) NOT NULL DEFAULT 'document' COMMENT '被浏览对象类型: document, post' ,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '最后浏览时间',
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+      deleted_at TIMESTAMP NULL DEFAULT NULL COMMENT '软删除标记，（NULL表示未删除）',
+      PRIMARY KEY (id),
+      KEY idx_user_view (user_id),
+      UNIQUE KEY uk_user_view_histories (user_id, source_id, source_type),
+      KEY idx_source_id (source_id, source_type)
 ) COMMENT='通用浏览历史表';
+-- 浏览记录唯一约束（避免重复添加）
+CREATE UNIQUE INDEX idx_view_histories_user_doc_unique
+    ON view_histories (user_id, source_id, source_type, (IF(deleted_at IS NULL, 1, NULL)));
+
+
 
 CREATE TABLE documents (
    id BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT COMMENT '文档唯一标识ID',
@@ -143,7 +151,7 @@ CREATE TABLE messages (
     session_id BIGINT UNSIGNED NOT NULL COMMENT '所属会话ID (外键, 对应 sessionId)',
     sender_id  BIGINT UNSIGNED NOT NULL COMMENT '发送者ID',
     content TEXT NOT NULL COMMENT '消息内容 (对应 content)',
-    status ENUM('sent', 'delivered', 'read') NOT NULL DEFAULT 'sent' COMMENT '消息状态 (对应 status)',
+    status varchar(20) NOT NULL DEFAULT 'unread' COMMENT '消息状态 (对应 status)，有unread和read两种状态',
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '发送时间',
     deleted_at TIMESTAMP NULL DEFAULT NULL COMMENT '软删除标记，（NULL表示未删除）',
     PRIMARY KEY (id),
@@ -182,7 +190,7 @@ CREATE TABLE post_likes (
                             user_id BIGINT UNSIGNED NOT NULL COMMENT '点赞用户ID',
                             post_id BIGINT UNSIGNED NOT NULL COMMENT '帖子ID',
                             created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '点赞时间',
-                            deleted_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '取消点赞时间',
+                            deleted_at TIMESTAMP NULL DEFAULT NULL COMMENT '取消点赞时间',
                             PRIMARY KEY (id),
                             UNIQUE KEY uk_user_post_like (user_id, post_id),
                             KEY idx_post_id (post_id)
@@ -192,18 +200,21 @@ CREATE UNIQUE INDEX idx_likes_user_post_unique
     ON post_likes (user_id, post_id, (IF(deleted_at IS NULL, 1, NULL)));
 
 CREATE TABLE notifications (
-                               id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '通知唯一标识ID (对应 reminderId)',
-                               receiver_id BIGINT UNSIGNED NOT NULL COMMENT '接收通知的用户ID (对应 recieverId)',
-                               type VARCHAR(50) NOT NULL COMMENT '通知类型 (对应 type): comment, like, favorite, system, chat',
-                               content TEXT COMMENT '通知内容 (对应 content)',
-                               -- 状态与时间
-                               is_read TINYINT(1) NOT NULL DEFAULT 0 COMMENT '是否已读 (对应 isRead): 0-未读, 1-已读',
-                               created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '发送时间 (对应 sendTime)',
-                               deleted_at TIMESTAMP NULL DEFAULT NULL COMMENT '软删除标记',
-                               PRIMARY KEY (id),
-                               KEY idx_receiver_status (receiver_id, is_read), -- 常用查询：查某用户的未读消息
-                               KEY idx_receiver_type (receiver_id, type),      -- 常用查询：查某用户的特定类型消息
-                               KEY idx_created_at (created_at)                 -- 用于按时间排序
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '通知唯一标识ID (对应 reminderId)',
+    receiver_id BIGINT UNSIGNED NOT NULL COMMENT '接收通知的用户ID (对应 recieverId)',
+    type VARCHAR(50) NOT NULL COMMENT '通知类型 (对应 type): comment, like, favorite, chat',
+    content TEXT COMMENT '通知内容 (对应 content)',    
+    -- 状态与时间
+    is_read TINYINT(1) NOT NULL DEFAULT 0 COMMENT '是否已读 (对应 isRead): 0-未读, 1-已读',
+    source_id BIGINT UNSIGNED NOT NULL COMMENT '通知来源资源标识ID (对应 documentId或者postId)',
+    source_type VARCHAR(50) NOT NULL COMMENT '通知来源资源类型 : document，post',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '发送时间 (对应 sendTime)',
+    deleted_at TIMESTAMP NULL DEFAULT NULL COMMENT '软删除标记',
+    PRIMARY KEY (id),
+    KEY idx_receiver_status (receiver_id, is_read), -- 常用查询：查某用户的未读消息
+    KEY idx_receiver_type (receiver_id, type),      -- 常用查询：查某用户的特定类型消息
+    KEY idx_created_at (created_at)                 -- 用于按时间排序
 ) COMMENT='用户通知表';
+
 
 

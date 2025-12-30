@@ -37,12 +37,12 @@ type ModifyDocumentDTO struct {
 	VideoURL   *string               `form:"videoURL,omitempty"`
 	CreateYear *string               `form:"createYear,omitempty"`
 	// 资料id
-	DocumentID   uint64   `form:"documentId" binding:"required"`
-	ISBN         *string  `form:"ISBN"`
-	Name         *string  `form:"name,omitempty"`
-	Tags         []string `form:"tags,omitempty"`
-	Type         *string  `form:"type,omitempty"`
-	Introduction *string  `form:"introduction,omitempty"`
+	DocumentID   uint64  `form:"documentId" binding:"required"`
+	ISBN         *string `form:"ISBN"`
+	Name         *string `form:"name,omitempty"`
+	Tags         string  `form:"tags,omitempty"` // 接收 JSON 字符串，需要手动解析为 []string
+	Type         *string `form:"type,omitempty"`
+	Introduction *string `form:"introduction,omitempty"`
 }
 type SearchDocumentDTO struct {
 	// 筛选科目
@@ -53,13 +53,12 @@ type SearchDocumentDTO struct {
 	TypeOfKey *string `form:"typeOfKey,omitempty"`
 	// 筛选文件类型
 	Type *string `form:"type,omitempty"`
-	// 筛选创作时间s
+	// 筛选创作时间
 	Year *string `form:"year,omitempty"`
 }
 type AdminModifyDocumentStatusRequest struct {
-	DocumentID uint64  `form:"documentId"`
-	Name       *string `form:"name,omitempty"`
-	Status     *string `form:"status"`
+	DocumentID uint64  `json:"documentId"`
+	Status     *string `json:"status"`
 }
 type DocumentBriefDTO struct {
 	Name        string `json:"name"`

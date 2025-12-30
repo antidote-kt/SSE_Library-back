@@ -80,3 +80,140 @@ func GetPostList(key string, order string) ([]models.Post, error) {
 	}
 	return posts, nil
 }
+
+// IncrementPostViewCount 增加帖子浏览量
+// 使用 UpdateColumn 进行原子更新 (view_count = view_count + 1)
+func IncrementPostViewCount(id uint64) error {
+	db := config.GetDB()
+	return db.Model(&models.Post{}).Where("id = ?", id).UpdateColumn("view_count", gorm.Expr("view_count + ?", 1)).Error
+}
+
+// LikePost 点赞帖子 (事务处理：插入记录 + 计数+1)
+func LikePost(userID, postID uint64) error {
+	db := config.GetDB()
+
+	return db.Transaction(func(tx *gorm.DB) error {
+		// 1. 检查是否已经点赞
+		var count int64
+		tx.Model(&models.PostLike{}).Where("user_id = ? AND post_id = ?", userID, postID).Count(&count)
+		if count > 0 {
+			return errors.New(constant.AlreadyLiked) // 避免重复点赞
+		}
+
+		// 2. 创建点赞记录
+		newLike := models.PostLike{
+			UserID: userID,
+			PostID: postID,
+		}
+		if err := tx.Create(&newLike).Error; err != nil {
+			return err
+		}
+
+		// 3. 帖子点赞数 +1 (原子操作)
+		if err := tx.Model(&models.Post{}).Where("id = ?", postID).UpdateColumn("like_count", gorm.Expr("like_count + ?", 1)).Error; err != nil {
+			return err
+		}
+
+		return nil
+	})
+}
+
+// UnlikePost 取消点赞 (事务处理：删除记录 + 计数-1)
+func UnlikePost(userID, postID uint64) error {
+	db := config.GetDB()
+
+	return db.Transaction(func(tx *gorm.DB) error {
+		// 1. 删除点赞记录 (Unscoped 硬删除，或者使用软删除均可，这里建议硬删除以节省空间)
+		// 注意：GORM 的 Delete 需要 Where 条件
+		result := tx.Where("user_id = ? AND post_id = ?", userID, postID).Unscoped().Delete(&models.PostLike{})
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected == 0 {
+			return errors.New("not liked yet") // 还没点赞过
+		}
+
+		// 2. 帖子点赞数 -1 (防止减为负数)
+		if err := tx.Model(&models.Post{}).
+			Where("id = ? AND like_count > 0", postID).
+			UpdateColumn("like_count", gorm.Expr("like_count - ?", 1)).Error; err != nil {
+			return err
+		}
+
+		return nil
+	})
+}
+
+// IsPostLikedByUser 检查用户是否已点赞
+func IsPostLikedByUser(userID, postID uint64) (bool, error) {
+	db := config.GetDB()
+	var count int64
+	// 查询是否存在记录
+	err := db.Model(&models.PostLike{}).
+		Where("user_id = ? AND post_id = ?", userID, postID).
+		Count(&count).Error
+
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
+// IncrementPostCommentCount 增加帖子的评论数
+func IncrementPostCommentCount(postID uint64) error {
+	db := config.GetDB()
+	return db.Model(&models.Post{}).
+		Where("id = ?", postID).
+		Update("comment_count", gorm.Expr("comment_count + ?", 1)).Error
+}
+
+// DecrementPostCommentCount 减少帖子的评论数
+func DecrementPostCommentCount(postID uint64) error {
+	db := config.GetDB()
+	return db.Model(&models.Post{}).
+		Where("id = ?", postID).
+		Update("comment_count", gorm.Expr("CASE WHEN comment_count > 0 THEN comment_count - 1 ELSE 0 END")).Error
+}
+
+// GetPostsByUserID 获取指定用户发布的帖子列表
+func GetPostsByUserID(userID uint64) ([]models.Post, error) {
+	db := config.GetDB()
+	var posts []models.Post
+
+	err := db.Model(&models.Post{}).
+		Where("sender_id = ? AND deleted_at IS NULL", userID).
+		Order("created_at DESC").
+		Find(&posts).Error
+
+	if err != nil {
+		return nil, err
+	}
+	return posts, nil
+}
+
+// DeletePostWithTx 删除帖子（使用事务，同时删除评论和文档关联）
+func DeletePostWithTx(postID uint64) error {
+	db := config.GetDB()
+
+	return db.Transaction(func(tx *gorm.DB) error {
+		// 1. 删除该帖子的所有评论
+		if err := tx.Where("source_id = ? AND source_type = ?", postID, constant.PostType).
+			Delete(&models.Comment{}).Error; err != nil {
+			return err
+		}
+
+		// 2. 删除文档对帖子的关联（post_documents 表）
+		if err := tx.Where("post_id = ?", postID).
+			Delete(&models.PostDocument{}).Error; err != nil {
+			return err
+		}
+
+		// 3. 删除帖子本身（软删除）
+		if err := tx.Where("id = ?", postID).
+			Delete(&models.Post{}).Error; err != nil {
+			return err
+		}
+
+		return nil
+	})
+}

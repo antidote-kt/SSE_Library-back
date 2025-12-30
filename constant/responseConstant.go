@@ -192,6 +192,7 @@ const (
 	SendRealTimeMsgFailed     = "实时消息发送失败"
 	SendMsgSuccess            = "消息发送成功"
 	GetSessionListSuccess     = "获取会话列表成功"
+	CreateNewSessionSuccess   = "创建新会话成功"
 )
 
 // websocket相关常量
@@ -200,11 +201,13 @@ const (
 )
 
 const (
-	GetNotificationSuccess = "成功获取通知"
-	NotificationIDInvalid  = "通知ID无效"
-	NotificationNotExist   = "通知不存在"
-	MarkReadFailed         = "标记已读失败"
-	MarkReadSuccess        = "标记已读成功"
+	GetNotificationSuccess  = "成功获取通知"
+	NotificationIDInvalid   = "通知ID无效"
+	NotificationNotExist    = "通知不存在"
+	MarkReadFailed          = "标记已读失败"
+	MarkReadSuccess         = "标记已读成功"
+	InvalidMessageType      = "消息类型无效"
+	GetUnreadMessageSuccess = "获取总的未读消息数量成功"
 )
 
 // 帖子相关常量
@@ -216,4 +219,9 @@ const (
 	PostsObtain              = "帖子列表获取成功"
 	PostNotExist             = "帖子不存在"
 	GetFavoritePostFailed    = "获取收藏帖子列表失败"
+	AlreadyLiked             = "禁止重复点赞"
+	DeletePostFailed         = "删除帖子失败"
+	DeletePostSuccess        = "删除帖子成功"
+	PostIDNotNull            = "postId 不能为空"
+	PostDeleteNotAllowed     = "无权删除他人的帖子"
 )
