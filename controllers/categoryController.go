@@ -1,10 +1,14 @@
 package controllers
 
 import (
+	"context"
 	"errors"
+	"log"
 	"net/http"
 	"strconv"
+	"time"
 
+	"github.com/antidote-kt/SSE_Library-back/config"
 	"github.com/antidote-kt/SSE_Library-back/constant"
 	"github.com/antidote-kt/SSE_Library-back/dao"
 	"github.com/antidote-kt/SSE_Library-back/dto"
@@ -26,11 +30,47 @@ type CategoryResponse struct {
 	Children    []*CategoryResponse `json:"children,omitempty"`
 }
 
+// clearHotCategoriesCache 清除热门分类缓存
+func clearHotCategoriesCache() {
+	rdb := config.GetRedisClient()
+	if rdb == nil {
+		log.Println("Redis客户端不可用，跳过清除热门分类缓存")
+		return
+	}
+
+	// 删除热门分类的 Redis 缓存，带重试机制
+	var err error
+	for i := 0; i < 3; i++ {
+		// 每次重试都创建新的上下文，避免使用已超时的上下文
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		err = rdb.Del(ctx, "hot_categories_zset").Err()
+		cancel() // 立即释放上下文资源
+
+		if err == nil {
+			log.Println("热门分类缓存已清除")
+			return
+		}
+		// 如果是连接错误，等待一下再重试
+		if i < 2 {
+			time.Sleep(100 * time.Millisecond)
+		}
+	}
+
+	// 所有重试都失败
+	log.Printf("警告: 清除热门分类缓存失败（已重试3次）: %v (不影响主流程)", err)
+}
+
 // buildCategoryTree 构建分类树
 func buildCategoryTree(categories []models.Category, fileCounts map[uint64]int64, readCounts map[uint64]int64) []*CategoryResponse {
+
+	rootCategories := make([]*CategoryResponse, 0)
+
+	if len(categories) == 0 {
+		return rootCategories
+	}
+
 	// 分类ID对应分类映射
 	categoryMap := make(map[uint64]*CategoryResponse)
-	var rootCategories []*CategoryResponse
 
 	for _, category := range categories {
 		categoryResp := &CategoryResponse{
@@ -55,6 +95,10 @@ func buildCategoryTree(categories []models.Category, fileCounts map[uint64]int64
 			// 将子分类添加到父分类的children中
 			if parent, ok := categoryMap[*category.ParentID]; ok {
 				parent.Children = append(parent.Children, categoryResp)
+			} else {
+				// 如果父分类不在映射中，说明父分类可能没有被包含在结果中
+				// 这种情况下，将子分类作为顶级分类返回（避免丢失数据）
+				rootCategories = append(rootCategories, categoryResp)
 			}
 		}
 	}
@@ -111,18 +155,88 @@ func SearchCategoriesAndCourses(c *gin.Context) {
 		return
 	}
 
-	// 搜索分类和课程
 	categories, err := dao.SearchCategoriesByName(name)
 	if err != nil {
 		response.Fail(c, constant.StatusInternalServerError, nil, constant.MsgDatabaseQueryFailed)
 		return
 	}
 
-	// 统计每类文档的数量和浏览量
+	documents, err := dao.SearchDocumentsByName(name)
+	if err != nil {
+		response.Fail(c, constant.StatusInternalServerError, nil, constant.MsgDatabaseQueryFailed)
+		return
+	}
+
+	categoryIDMap := make(map[uint64]bool)
+	for _, category := range categories {
+		categoryIDMap[category.ID] = true
+		if category.ParentID != nil {
+			categoryIDMap[*category.ParentID] = true
+		}
+	}
+	for _, document := range documents {
+		categoryIDMap[document.CategoryID] = true
+	}
+
+	var allCategoryIDs []uint64
+	for id := range categoryIDMap {
+		allCategoryIDs = append(allCategoryIDs, id)
+	}
+
+	var allCategories []models.Category
+	if len(allCategoryIDs) > 0 {
+		allCategories, err = dao.GetCategoriesByIDs(allCategoryIDs)
+		if err != nil {
+			response.Fail(c, constant.StatusInternalServerError, nil, constant.MsgDatabaseQueryFailed)
+			return
+		}
+
+		parentIDSet := make(map[uint64]bool)
+		for _, cat := range allCategories {
+			if cat.ParentID != nil {
+				parentIDSet[*cat.ParentID] = true
+			}
+		}
+
+		for len(parentIDSet) > 0 {
+			var missingParentIDs []uint64
+			for pid := range parentIDSet {
+				found := false
+				for _, cat := range allCategories {
+					if cat.ID == pid {
+						found = true
+						break
+					}
+				}
+				if !found {
+					missingParentIDs = append(missingParentIDs, pid)
+				}
+			}
+
+			if len(missingParentIDs) == 0 {
+				break
+			}
+
+			parentCategories, err := dao.GetCategoriesByIDs(missingParentIDs)
+			if err != nil {
+				break
+			}
+
+			allCategories = append(allCategories, parentCategories...)
+
+			parentIDSet = make(map[uint64]bool)
+			for _, cat := range parentCategories {
+				if cat.ParentID != nil {
+					parentIDSet[*cat.ParentID] = true
+				}
+			}
+		}
+	}
+
 	fileCounts := make(map[uint64]int64)
 	readCounts := make(map[uint64]int64)
 
-	for _, category := range categories {
+	for _, category := range allCategories {
 		// 统计文档数量
 		fileCount, err := dao.CountDocumentsByCategory(category.ID)
 		if err != nil {
@@ -140,8 +254,8 @@ func SearchCategoriesAndCourses(c *gin.Context) {
 		readCounts[category.ID] = readCount
 	}
 
-	// 构建分类树
-	categoryTree := buildCategoryTree(categories, fileCounts, readCounts)
+	// 6. 构建分类树
+	categoryTree := buildCategoryTree(allCategories, fileCounts, readCounts)
 
 	response.SuccessWithData(c, categoryTree, constant.MsgGetCategoriesSuccess)
 }
@@ -198,7 +312,10 @@ func AddCategory(c *gin.Context) {
 		return
 	}
 
-	// 5. 返回成功响应
+	// 5. 清除热门分类缓存
+	clearHotCategoriesCache()
+
+	// 6. 返回成功响应
 	response.Success(c, gin.H{"success": true}, constant.MsgCategoryCreateSuccess)
 }
 
@@ -230,6 +347,9 @@ func DeleteCategory(c *gin.Context) {
 		response.Fail(c, http.StatusInternalServerError, nil, constant.MsgCategoryDeleteFailed)
 		return
 	}
+
+	// 清除热门分类缓存
+	clearHotCategoriesCache()
 
 	// 返回成功响应（根据图片要求，返回格式为 {"code": 0, "message": "string"}）
 	response.Success(c, nil, constant.MsgCategoryDeleteSuccess)
@@ -334,6 +454,9 @@ func ModifyCategory(c *gin.Context) {
 		response.Fail(c, http.StatusInternalServerError, nil, constant.MsgCategoryUpdateFailed)
 		return
 	}
+
+	// 清除热门分类缓存
+	clearHotCategoriesCache()
 
 	// 构建响应数据
 	parentID := uint64(0)

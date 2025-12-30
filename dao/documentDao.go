@@ -122,7 +122,15 @@ func DeleteDocumentWithTx(tx *gorm.DB, document models.Document) error {
 func IncrementDocumentViewCount(id uint64) error {
 	db := config.GetDB()
 	// 使用 UpdateColumn 进行原子更新，避免并发冲突，且不更新 UpdatedAt 时间
-	return db.Model(&models.Document{}).Where("id = ?", id).UpdateColumn("view_count", gorm.Expr("view_count + ?", 1)).Error
+	return db.Model(&models.Document{}).Where("id = ?", id).UpdateColumn("read_counts", gorm.Expr("read_counts + ?", 1)).Error
+}
+
+// SearchDocumentsByName 根据名称搜索文档
+func SearchDocumentsByName(name string) ([]models.Document, error) {
+	db := config.GetDB()
+	var documents []models.Document
+	err := db.Where("name LIKE ? AND status = ? AND deleted_at IS NULL", "%"+name+"%", constant.DocumentStatusOpen).Find(&documents).Error
+	return documents, err
 }
 
 // SearchDocumentsByParams 根据参数搜索文档，先用key搜索，再进行其他参数过滤
