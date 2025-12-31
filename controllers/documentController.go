@@ -222,7 +222,7 @@ func GetDocumentByID(c *gin.Context) {
 		go func(uid uint64, sourceID uint64) {
 			// 传入 "document" 类型
 			_ = dao.AddViewHistory(uid, sourceID, "document")
-		}(userClaims.UserID, documentID)
+		}(userClaims.UserID, documentID) // 回调函数实现异步
 	}
 
 	// 构建文档详情响应数据结构

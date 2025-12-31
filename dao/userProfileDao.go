@@ -25,7 +25,7 @@ func GetViewHistoryDocumentsByUserID(userID uint64) ([]models.Document, error) {
 	err := db.Joins("JOIN view_histories ON view_histories.source_id = documents.id").
 		Where("view_histories.user_id = ?", userID).
 		Where("view_histories.source_type = ?", "document").
-		Order("view_histories.created_at DESC"). // 通常按最近浏览排序
+		Order("view_histories.updated_at DESC"). // 通常按最近浏览排序
 		Find(&documents).Error
 	return documents, err
 }

@@ -182,7 +182,9 @@ const (
 	SessionIDLack             = "sessionId参数不能为空"
 	SessionIDFormatError      = "sessionId参数格式错误"
 	GetChatMessageSuccess     = "获取聊天记录成功"
+	GetChatMessageFailed      = "获取聊天记录失败"
 	SearchKeyLack             = "searchKey参数不能为空"
+	SearchChatSuccess         = "搜索聊天记录成功"
 	UserNotInSession          = "用户不是会话的参与者"
 	ChatMsgContentEmpty       = "消息内容不能为空"
 	NotSelfMsg                = "不能给自己发送消息"
@@ -193,6 +195,7 @@ const (
 	SendMsgSuccess            = "消息发送成功"
 	GetSessionListSuccess     = "获取会话列表成功"
 	CreateNewSessionSuccess   = "创建新会话成功"
+	GetSessionUserFailed      = "会话用户不存在"
 )
 
 // websocket相关常量

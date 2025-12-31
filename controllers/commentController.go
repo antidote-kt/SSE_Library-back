@@ -146,7 +146,7 @@ func PostComment(c *gin.Context) {
 			return
 		}
 	case "post":
-		_, err = dao.GetPostByID(sourceID)
+		_, err := dao.GetPostByID(sourceID)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				response.Fail(c, http.StatusNotFound, nil, constant.MsgRecordNotFound)
@@ -192,6 +192,120 @@ func PostComment(c *gin.Context) {
 	if err != nil {
 		response.Fail(c, http.StatusInternalServerError, nil, constant.MsgCommentCreateFailed)
 		return
+	}
+
+	// 将评论结果处理成通知格式并插入通知表
+	// 1.检查评论的对象资源类型（是document还是post）
+	// 2.根据类型查找资源
+	// 3.调用资源（数据模型）的属性值构建通知内容
+	if sourceType == "document" {
+		document, err := dao.GetDocumentByID(sourceID)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				response.Fail(c, http.StatusNotFound, nil, constant.MsgRecordNotFound)
+				return
+			}
+			response.Fail(c, http.StatusInternalServerError, nil, constant.MsgDatabaseQueryFailed)
+			return
+		}
+
+		notification := &models.Notification{
+			ReceiverID: document.UploaderID,
+			Type:       "comment",
+			Content:    "您上传的文档《" + document.Name + "》收到了一条新的评论",
+			IsRead:     false,
+			SourceID:   sourceID,
+			SourceType: sourceType,
+		}
+
+		err = dao.CreateNotification(notification)
+		if err != nil {
+			log.Println("创建通知失败:", err) // 通知创建失败不影响评论本身发表，因此这里只打印日志而不返回错误
+		}
+
+		// 此时 notification.ID 已经被 GORM 自动填充了
+		// CreateNotification函数中，GORM 的 `Create` 方法接收一个接口（通常是指向结构体的指针）。
+		// 它会生成 SQL 插入语句，并在执行后，利用数据库驱动（如 `database/sql`）的能力获取 `LastInsertId`，
+		// 然后反射（Reflect）将这个 ID 赋值回给结构体的主键字段（通常是 `ID`）。因此不需要让函数显式返回 ID，直接用原对象就能拿到了。
+		newID := notification.ID
+
+		// WebSocket 实时推送提醒
+		// 构建提醒数据格式
+		wsData := gin.H{
+			"reminderId":   newID,
+			"remindertype": notification.Type,
+			"content":      notification.Content,
+			"sendTime":     notification.CreatedAt,
+			"sourceId":     notification.SourceID,
+			"sourceType":   notification.SourceType,
+		}
+
+		// 将评论信息推送给接收者 (如果在线) ，实现客户端实时接收
+		// 调用 WebSocket 管理器发送
+		err = utils.WSManager.SendToUser(document.UploaderID, utils.WSMessage{
+			Type:       "reminder",
+			ReceiverID: document.UploaderID,
+			Data:       wsData,
+		})
+		if err != nil {
+			// 实时推送失败，但消息已持久化，接收者下次上线时可通过 GetNotification 拉取新提醒
+			// 因此仅打印日志不返回错误
+			log.Printf("WS推送给接收者 %d 失败(可能离线): %v", document.UploaderID, err)
+		}
+	} else if sourceType == "post" {
+		post, err := dao.GetPostByID(sourceID)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				response.Fail(c, http.StatusNotFound, nil, constant.MsgRecordNotFound)
+				return
+			}
+			response.Fail(c, http.StatusInternalServerError, nil, constant.MsgDatabaseQueryFailed)
+			return
+		}
+
+		notification := &models.Notification{
+			ReceiverID: post.SenderID,
+			Type:       "comment",
+			Content:    "您发布的帖子《" + post.Title + "》收到了一条新的评论",
+			IsRead:     false,
+			SourceID:   sourceID,
+			SourceType: sourceType,
+		}
+
+		err = dao.CreateNotification(notification)
+		if err != nil {
+			log.Println("创建通知失败:", err) // 通知创建失败不影响评论本身发表，因此这里只打印日志而不返回错误
+		}
+
+		// 此时 notification.ID 已经被 GORM 自动填充了
+		// CreateNotification函数中，GORM 的 `Create` 方法接收一个接口（通常是指向结构体的指针）。
+		// 它会生成 SQL 插入语句，并在执行后，利用数据库驱动（如 `database/sql`）的能力获取 `LastInsertId`，
+		//然后反射（Reflect）将这个 ID 赋值回给结构体的主键字段（通常是 `ID`）。因此不需要让函数显式返回 ID，直接用原对象就能拿到了。
+		newID := notification.ID
+
+		// WebSocket 实时推送提醒
+		// 构建提醒数据格式
+		wsData := gin.H{
+			"reminderId":   newID,
+			"remindertype": notification.Type,
+			"content":      notification.Content,
+			"sendTime":     notification.CreatedAt,
+			"sourceId":     notification.SourceID,
+			"sourceType":   notification.SourceType,
+		}
+
+		// 将评论信息推送给接收者 (如果在线) ，实现客户端实时接收
+		// 调用 WebSocket 管理器发送
+		err = utils.WSManager.SendToUser(post.SenderID, utils.WSMessage{
+			Type:       "reminder",
+			ReceiverID: post.SenderID,
+			Data:       wsData,
+		})
+		if err != nil {
+			// 实时推送失败，但消息已持久化，接收者下次上线时可通过 GetNotification 拉取新提醒
+			// 因此仅打印日志不返回错误
+			log.Printf("WS推送给接收者 %d 失败(可能离线): %v", post.SenderID, err)
+		}
 	}
 
 	// 如果是帖子类型，更新帖子的评论数

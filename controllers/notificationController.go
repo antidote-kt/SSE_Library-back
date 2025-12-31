@@ -124,6 +124,7 @@ func MarkNotification(c *gin.Context) {
 	response.Success(c, nil, constant.MarkReadSuccess)
 }
 
+// GetUnreadMessage 获取总的未读消息数量
 func GetUnreadMessage(c *gin.Context) {
 	// 声明请求参数结构体并解析参数
 	var request dto.GetUnreadMessageDTO

@@ -3,6 +3,7 @@ package controllers
 import (
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -117,7 +118,7 @@ func handleDocumentCollection(userID, documentID uint64) (interface{}, error) {
 		return nil, errors.New(constant.FavoriteAlreadyExistsMsg)
 	}
 
-	// 使用数据库事务确保操作的原子性
+	// 使用数据库事务确保操作的原子性，事务内部的定义都只在局部作用
 	db := config.GetDB()
 	err = db.Transaction(func(tx *gorm.DB) error {
 		// 创建新的收藏记录
@@ -143,6 +144,49 @@ func handleDocumentCollection(userID, documentID uint64) (interface{}, error) {
 
 	if err != nil {
 		return nil, err
+	}
+
+	// 为收藏结果创建通知，并插入通知表，发送websocket通知（为了分离通知操作和收藏操作，将通知逻辑写在收藏事务的外部）
+	// 1.获取收藏该资源的用户信息，方便调取userName插入notification记录
+	user, err := dao.GetUserByID(userID)
+	if err != nil {
+		return nil, errors.New(constant.DatabaseError)
+	}
+	// 2.创建通知
+	notification := models.Notification{
+		ReceiverID: document.UploaderID,
+		Type:       "favorite",
+		Content:    fmt.Sprintf("你上传的文档《%s》被用户\"  %s \" 收藏", document.Name, user.Username),
+		IsRead:     false,
+		SourceID:   document.ID,
+		SourceType: constant.DocumentType,
+	}
+	err = dao.CreateNotification(&notification)
+	if err != nil {
+		log.Println("创建通知失败:", err) // 通知创建失败不影响收藏操作本身，因此这里只打印日志而不返回空切片和错误
+	}
+	// 3.发送websocket通知
+	// 构建提醒数据格式
+	wsData := gin.H{
+		"reminderId":   notification.ID,
+		"remindertype": notification.Type,
+		"content":      notification.Content,
+		"sendTime":     notification.CreatedAt,
+		"sourceId":     notification.SourceID,
+		"sourceType":   notification.SourceType,
+	}
+
+	// 将评论信息推送给接收者 (如果在线) ，实现客户端实时接收
+	// 调用 WebSocket 管理器发送
+	err = utils.WSManager.SendToUser(document.UploaderID, utils.WSMessage{
+		Type:       "reminder",
+		ReceiverID: document.UploaderID,
+		Data:       wsData,
+	})
+	if err != nil {
+		// 实时推送失败，但消息已持久化，接收者下次上线时可通过 GetNotification 拉取新提醒
+		// 因此仅打印日志不返回错误
+		log.Printf("WS推送给接收者 %d 失败(可能离线): %v", document.UploaderID, err)
 	}
 
 	// 获取用户收藏的所有文档列表
@@ -216,6 +260,49 @@ func handlePostCollection(userID, postID uint64) (interface{}, error) {
 
 	if err != nil {
 		return nil, err
+	}
+
+	// 为收藏结果创建通知，并插入通知表，发送websocket通知（为了分离通知操作和收藏操作，将通知逻辑写在收藏事务的外部）
+	// 1.获取收藏该资源的用户信息，方便调取userName插入notification记录
+	user, err := dao.GetUserByID(userID)
+	if err != nil {
+		return nil, errors.New(constant.DatabaseError)
+	}
+	// 2.创建通知
+	notification := models.Notification{
+		ReceiverID: post.SenderID,
+		Type:       "favorite",
+		Content:    fmt.Sprintf("你发表的帖子《%s》被用户\"  %s \" 收藏", post.Title, user.Username),
+		IsRead:     false,
+		SourceID:   post.ID,
+		SourceType: constant.PostType,
+	}
+	err = dao.CreateNotification(&notification)
+	if err != nil {
+		log.Println("创建通知失败:", err) // 通知创建失败不影响收藏操作本身，因此这里只打印日志而不返回空切片和错误
+	}
+	// 3.发送websocket通知
+	// 构建提醒数据格式
+	wsData := gin.H{
+		"reminderId":   notification.ID,
+		"remindertype": notification.Type,
+		"content":      notification.Content,
+		"sendTime":     notification.CreatedAt,
+		"sourceId":     notification.SourceID,
+		"sourceType":   notification.SourceType,
+	}
+
+	// 将评论信息推送给接收者 (如果在线) ，实现客户端实时接收
+	// 调用 WebSocket 管理器发送
+	err = utils.WSManager.SendToUser(post.SenderID, utils.WSMessage{
+		Type:       "reminder",
+		ReceiverID: post.SenderID,
+		Data:       wsData,
+	})
+	if err != nil {
+		// 实时推送失败，但消息已持久化，接收者下次上线时可通过 GetNotification 拉取新提醒
+		// 因此仅打印日志不返回错误
+		log.Printf("WS推送给接收者 %d 失败(可能离线): %v", post.SenderID, err)
 	}
 
 	// 获取用户收藏的所有帖子列表
