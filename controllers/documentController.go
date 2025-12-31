@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
 	"strconv"
@@ -30,6 +31,18 @@ func ModifyDocument(c *gin.Context) {
 	if err := c.ShouldBind(&request); err != nil {
 		response.Fail(c, http.StatusBadRequest, nil, constant.ParamParseError)
 		return
+	}
+
+	// 解析 tags JSON 字符串为 []string
+	// 如果前端传了 tags 字段（即使是空数组 []），也需要处理标签更新
+	var tags []string
+	hasTagsField := false
+	if request.Tags != "" {
+		hasTagsField = true
+		if err := json.Unmarshal([]byte(request.Tags), &tags); err != nil {
+			response.Fail(c, http.StatusBadRequest, nil, "标签格式错误: "+err.Error())
+			return
+		}
 	}
 
 	// 根据文档ID查找要修改的文档
@@ -128,16 +141,19 @@ func ModifyDocument(c *gin.Context) {
 			return err
 		}
 
-		// 如果请求中包含标签信息，则更新标签映射关系
-		if len(request.Tags) > 0 {
+		// 如果请求中包含标签字段，则更新标签映射关系
+		if hasTagsField {
 			// 删除原有的标签映射关系
 			if err := dao.DeleteDocumentTagByDocumentIDWithTx(tx, document.ID); err != nil {
 				return errors.New(constant.OldTagDeleteFailed)
 			}
-			// 创建新的标签映射关系
-			if err := dao.CreateDocumentTagWithTx(tx, document.ID, request.Tags); err != nil {
-				return err
+			// 如果解析后的标签数组不为空，创建新的标签映射关系
+			if len(tags) > 0 {
+				if err := dao.CreateDocumentTagWithTx(tx, document.ID, tags); err != nil {
+					return err
+				}
 			}
+			// 如果 tags 为空数组，只删除不创建，实现清空标签的效果
 		}
 		return nil
 	})

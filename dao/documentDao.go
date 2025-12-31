@@ -122,7 +122,15 @@ func DeleteDocumentWithTx(tx *gorm.DB, document models.Document) error {
 func IncrementDocumentViewCount(id uint64) error {
 	db := config.GetDB()
 	// 使用 UpdateColumn 进行原子更新，避免并发冲突，且不更新 UpdatedAt 时间
-	return db.Model(&models.Document{}).Where("id = ?", id).UpdateColumn("view_count", gorm.Expr("view_count + ?", 1)).Error
+	return db.Model(&models.Document{}).Where("id = ?", id).UpdateColumn("read_counts", gorm.Expr("read_counts + ?", 1)).Error
+}
+
+// SearchDocumentsByName 根据名称搜索文档
+func SearchDocumentsByName(name string) ([]models.Document, error) {
+	db := config.GetDB()
+	var documents []models.Document
+	err := db.Where("name LIKE ? AND status = ? AND deleted_at IS NULL", "%"+name+"%", constant.DocumentStatusOpen).Find(&documents).Error
+	return documents, err
 }
 
 // SearchDocumentsByParams 根据参数搜索文档，先用key搜索，再进行其他参数过滤
@@ -219,7 +227,7 @@ func GetDocumentList(isSuggest bool, categoryID *uint64) ([]models.Document, err
 	query := db.Model(&models.Document{})
 
 	// 基础条件：只返回状态为Open的文档，且未删除
-	query = query.Where("deleted_at IS NULL")
+	query = query.Where("status = ? AND deleted_at IS NULL", constant.DocumentStatusOpen)
 
 	// 1. 处理分类筛选 (无论是推荐模式还是普通模式，分类筛选如果传了都应该生效)
 	// 如果不希望在推荐模式下筛选分类，可以将这段移到 else 分支里

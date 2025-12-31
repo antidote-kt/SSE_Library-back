@@ -190,3 +190,30 @@ func GetPostsByUserID(userID uint64) ([]models.Post, error) {
 	}
 	return posts, nil
 }
+
+// DeletePostWithTx 删除帖子（使用事务，同时删除评论和文档关联）
+func DeletePostWithTx(postID uint64) error {
+	db := config.GetDB()
+
+	return db.Transaction(func(tx *gorm.DB) error {
+		// 1. 删除该帖子的所有评论
+		if err := tx.Where("source_id = ? AND source_type = ?", postID, constant.PostType).
+			Delete(&models.Comment{}).Error; err != nil {
+			return err
+		}
+
+		// 2. 删除文档对帖子的关联（post_documents 表）
+		if err := tx.Where("post_id = ?", postID).
+			Delete(&models.PostDocument{}).Error; err != nil {
+			return err
+		}
+
+		// 3. 删除帖子本身（软删除）
+		if err := tx.Where("id = ?", postID).
+			Delete(&models.Post{}).Error; err != nil {
+			return err
+		}
+
+		return nil
+	})
+}

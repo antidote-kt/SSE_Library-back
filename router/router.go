@@ -50,6 +50,7 @@ func SetupRouter() *gin.Engine {
 		authed.GET("/getReminder", controllers.GetNotification)                     //获取提醒
 		authed.POST("/markRead", controllers.MarkNotification)                      //标记提醒为已读
 		authed.GET("/unreadMessage", controllers.GetUnreadMessage)                  // 获取总的未读消息（包括聊天记录和通知提醒）
+		authed.DELETE("/post", controllers.DeletePost)                              //删除帖子
 
 		// 用户相关操作
 		userApi := authed.Group("/user")
