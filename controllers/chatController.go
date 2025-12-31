@@ -184,12 +184,12 @@ func SearchChatMessages(c *gin.Context) {
 			// 4.3 构造结果对象
 			newEntry := &response.SearchChatResult{
 				SessionID:   msg.SessionID,
-				User1ID:     targetUserID,
-				User1Name:   targetUser.Username,
-				User1Avatar: utils.GetFileURL(targetUser.Avatar),
-				User2ID:     currentUser.ID,
-				User2Name:   currentUser.Username,
-				User2Avatar: utils.GetFileURL(currentUser.Avatar),
+				UserID1:     targetUserID,
+				UserName1:   targetUser.Username,
+				UserAvatar1: utils.GetFileURL(targetUser.Avatar),
+				UserID2:     currentUser.ID,
+				UserName2:   currentUser.Username,
+				UserAvatar2: utils.GetFileURL(currentUser.Avatar),
 				MatchCount:  1,
 				LatestMsg:   msg.Content,
 			}

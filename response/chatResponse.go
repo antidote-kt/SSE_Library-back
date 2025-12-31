@@ -14,12 +14,12 @@ import (
 // SearchChatResult 聊天记录搜索结果
 type SearchChatResult struct {
 	SessionID   uint64 `json:"sessionId"`
-	User1ID     uint64 `json:"user1Id"`
-	User1Avatar string `json:"user1Avatar"`
-	User1Name   string `json:"user1Name"`
-	User2ID     uint64 `json:"user2Id"`
-	User2Avatar string `json:"user2Avatar"`
-	User2Name   string `json:"user2Name"`
+	UserID1     uint64 `json:"userId1"`
+	UserAvatar1 string `json:"userAvatar1"`
+	UserName1   string `json:"userName1"`
+	UserID2     uint64 `json:"userId2"`
+	UserAvatar2 string `json:"userAvatar2"`
+	UserName2   string `json:"userName2"`
 	MatchCount  uint64 `json:"matchedCount"`
 	LatestMsg   string `json:"example"`
 }
