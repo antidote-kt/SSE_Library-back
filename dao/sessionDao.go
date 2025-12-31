@@ -43,6 +43,15 @@ func GetSessionByUsers(user1ID, user2ID uint64) (*models.Session, error) {
 // CreateSession 创建一个新的会话
 func CreateSession(session *models.Session) error {
 	db := config.GetDB()
+	var existsSession models.Session
+	// 检查会话是否已经存在，已存在则直接返回niu不创建新会话
+	db.Where("user1_id = ? AND user2_id = ?", session.User1ID, session.User2ID).
+		Or("user1_id = ? AND user2_id = ?", session.User2ID, session.User1ID).
+		Find(&existsSession)
+	if existsSession.ID != 0 {
+		return nil
+	}
+	// 否则创建新会话再返回
 	return db.Create(session).Error
 }
 

@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"errors"
 	"log"
 	"net/http"
 	"strconv"
@@ -13,7 +12,6 @@ import (
 	"github.com/antidote-kt/SSE_Library-back/response"
 	"github.com/antidote-kt/SSE_Library-back/utils"
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 )
 
 // GetChatMessages 获取聊天记录接口
@@ -101,67 +99,114 @@ func GetChatMessages(c *gin.Context) {
 	response.SuccessWithData(c, responseData, constant.GetChatMessageSuccess)
 }
 
-// SearchChatMessages 搜索聊天记录接口
+// SearchChatMessages 全局搜索聊天记录（返回包含搜索关键词的聊天信息所在的会话列表）
+// GET /api/chat/globalSearch
+// 处理逻辑：先查目标聊天信息messages，再对其中每一条message循环处理：
+// 1. 根据message.sessionId查找对应的会话session
+// 2. 建立message.sessionId到接口响应结构体SearchChatResponse的键值对映射，
+// 3. 若映射已存在（前面已经处理过相同会话的信息），则只需更新所属会话的响应结构体中的消息数量字段即可
+// 4. 每次循环都append到[]*response.SearchChatResponse数组里
+// PS：这个接口的数据查询业务逻辑比较复杂，也比较特殊，没有复用性需求，故无需额外定义build response函数
 func SearchChatMessages(c *gin.Context) {
-	// 从查询参数获取userId
-	userIdStr := c.Query("userId")
-	if userIdStr == "" {
-		// 用户ID缺失，返回错误响应
-		response.Fail(c, http.StatusBadRequest, nil, constant.UserIDLack)
-		return
-	}
-
-	// 从查询参数获取searchKey
-	searchKey := c.Query("searchKey")
-	if searchKey == "" {
-		// 搜索关键词缺失，返回错误响应
+	// 1. 获取参数
+	keyword := c.Query("searchKey")
+	if keyword == "" {
 		response.Fail(c, http.StatusBadRequest, nil, constant.SearchKeyLack)
 		return
 	}
 
-	// 将字符串转换为uint64类型的用户ID
-	userID, err := strconv.ParseUint(userIdStr, 10, 64)
-	if err != nil {
-		// 用户ID格式错误，返回错误响应
-		response.Fail(c, http.StatusBadRequest, nil, constant.MsgUserIDFormatError)
-		return
-	}
-
-	// 从上下文中获取用户声明信息
+	// 2. 获取当前用户
 	claims, exists := c.Get(constant.UserClaims)
 	if !exists {
-		// 获取用户信息失败，返回错误响应
 		response.Fail(c, http.StatusUnauthorized, nil, constant.GetUserInfoFailed)
 		return
 	}
-
-	// 类型转换用户声明信息
 	userClaims := claims.(*utils.MyClaims)
+	currentUserID := userClaims.UserID
+	currentUser, err := dao.GetUserByID(userClaims.UserID)
 
-	// 验证请求的用户ID是否与当前登录用户ID一致
-	if userClaims.UserID != userID {
-		// 不是本人操作，返回错误响应
-		response.Fail(c, http.StatusUnauthorized, nil, constant.NonSelf)
-		return
-	}
-
-	// 搜索指定用户的聊天记录
-	messages, err := dao.SearchChatMessagesByUser(userID, searchKey)
+	// 3. 查出所有符合条件的消息 (已按时间倒序)
+	messages, err := dao.SearchMessagesByUserAndKeyword(currentUserID, keyword)
 	if err != nil {
-		// 数据库操作错误，返回错误响应
 		response.Fail(c, http.StatusInternalServerError, nil, constant.DatabaseError)
 		return
 	}
 
-	// 构造返回数据数组，存储聊天记录信息
-	responseData, err := response.BuildChatRecordResponses(messages)
-	if err != nil {
-		response.Fail(c, http.StatusInternalServerError, nil, err.Error())
-		return
+	// 4. 在内存中进行分组和聚合
+	// key: SessionID, value: *response.SearchChatResult
+	resultMap := make(map[uint64]*response.SearchChatResult)
+	var resultList []*response.SearchChatResult
+	// 用切片来保持顺序（需要按最近匹配的会话排序）
+	// 这里使用指针切片 []*response.SearchChatResult 而不是结构体切片 []response.SearchChatResult，主要有以下几个原因：
+	// - 方便在 Map 中修改值：
+	// 在 Go 语言中，从 map 获取的值是不可寻址的（unaddressable）。也就是说，如果定义 map[uint64]SearchChatResult（非指针），当你写 entry := resultMap[id] 时，你得到的是该结构体的一个副本。
+	// 如果随后修改 entry.MatchCount++，你修改的只是这个副本的计数，原 map 中的结构体不会发生任何变化。
+	// 而使用指针 *SearchChatResult，map 中存储的是指向内存中同一个对象的地址。当你 entry := resultMap[id] 时，你拿到的是同一个指针副本，但它指向的还是原来的对象。
+	// 此时修改 entry.MatchCount++ 能够真正影响到内存中的对象，也就能同步更新到 resultList 引用的对象中。
+	//
+	// - 避免大数据拷贝，提高性能：
+	// 如果 SearchChatResult 结构体比较大（虽然这里不算太大，但包含字符串等字段），每次从 map 取值、或者 append 到切片时，如果不使用指针，都会发生结构体的值拷贝。
+	// 使用指针只拷贝 8 字节（64位系统）的内存地址，效率更高。
+	//
+	// - 保持 Map 和 List 的数据一致性：
+	// 在这个逻辑中，我们同时维护了一个 resultMap（用于快速查找去重）和一个 resultList（用于保持顺序）。
+	// 我们希望修改 Map 中的元素（比如增加计数）时，List 中的对应元素也能自动体现这个修改。
+	// 通过让它们都指向同一个内存地址（指针），我们就不用在修改 Map 后再去遍历 List 查找更新了。
+	for _, msg := range messages {
+		if entry, exists := resultMap[msg.SessionID]; exists {
+			// 如果该会话已存在结果中
+			entry.MatchCount++
+			// 因为步骤3中的 DAO 查出来是按时间倒序的，所以第一次存入的就是最新的，后续遍历到的都是旧的，不用更新 LatestMsg
+		} else {
+			// 如果该会话第一次出现
+			// 4.1 获取会话信息以确定“对方”是谁
+			session, err := dao.GetSessionByID(msg.SessionID)
+			if err != nil {
+				response.Fail(c, http.StatusInternalServerError, nil, constant.DatabaseError)
+				return
+			}
+
+			// 确定对方ID
+			var targetUserID uint64
+			if session.User1ID == currentUserID {
+				targetUserID = session.User2ID
+			} else {
+				targetUserID = session.User1ID
+			}
+
+			// 4.2 获取对方用户信息
+			targetUser, err := dao.GetUserByID(targetUserID)
+			if err != nil {
+				response.Fail(c, http.StatusInternalServerError, nil, constant.DatabaseError)
+				return
+			}
+
+			// 4.3 构造结果对象
+			newEntry := &response.SearchChatResult{
+				SessionID:   msg.SessionID,
+				User1ID:     targetUserID,
+				User1Name:   targetUser.Username,
+				User1Avatar: utils.GetFileURL(targetUser.Avatar),
+				User2ID:     currentUser.ID,
+				User2Name:   currentUser.Username,
+				User2Avatar: utils.GetFileURL(currentUser.Avatar),
+				MatchCount:  1,
+				LatestMsg:   msg.Content,
+			}
+
+			// 将该会话插入map表
+			resultMap[msg.SessionID] = newEntry
+			resultList = append(resultList, newEntry)
+		}
 	}
 
-	// 返回搜索到的聊天记录列表
-	response.SuccessWithData(c, responseData, constant.GetChatMessageSuccess)
+	// 5. 返回结果
+	// 如果没有搜索结果，返回空数组而不是 null
+	if resultList == nil {
+		resultList = []*response.SearchChatResult{}
+	}
+
+	response.SuccessWithData(c, resultList, constant.SearchChatSuccess)
 }
 
 // CreateChatSession 创建聊天会话接口
@@ -197,7 +242,16 @@ func CreateChatSession(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, nil, constant.CreateNewSessionSuccess)
+	// 4. 构建返回数据（CreateChatSession和GetSessionList复用同一个封装的响应构建函数）
+	// 注意由于会话相关接口要返回未读消息数，而查询未读消息需要明确当前用户本人ID，在BuildSessionResponse中光靠session不够
+	// 因此这里再传入从JWT解析的用户本人ID，用于统计未读消息数
+	responseData, err := response.BuildSessionResponse(session, userClaims.UserID)
+	if err != nil {
+		response.Fail(c, http.StatusInternalServerError, nil, err.Error())
+		return
+	}
+
+	response.SuccessWithData(c, responseData, constant.CreateNewSessionSuccess)
 }
 
 // SendMessage 发送信息接口
@@ -312,7 +366,6 @@ func SendMessage(c *gin.Context) {
 		"senderAvatar": utils.GetFileURL(sender.Avatar),
 		"content":      message.Content,
 		"sendTime":     message.CreatedAt.Format("2006-01-02 15:04:05"),
-		"type":         "chat_message", // 消息类型标记
 	}
 
 	// 7.1 推送给接收者 (如果在线) 以及本人，实现客户端实时接收
@@ -342,7 +395,7 @@ func SendMessage(c *gin.Context) {
 	}
 
 	// 7.2 推送给发送者
-	// 这能实现“多端同步”：如果你在手机上发了消息，电脑端的聊天窗口也能实时收到这条发出的消息并上屏。
+	// 可实现“多端同步”：如果一台电脑发了消息，另一台电脑的聊天窗口也能实时收到这条发出的消息并上屏。
 	err = utils.WSManager.SendToUser(currentUserID, utils.WSMessage{
 		Type:       "chat_message",
 		ReceiverID: currentUserID, // 目标是发送者自己
@@ -407,52 +460,12 @@ func GetSessionList(c *gin.Context) {
 	}
 
 	// 3. 组装响应数据
-	var sessionList []response.SessionResponse
-
-	for _, session := range sessions {
-		// 3.1 获取双方用户信息
-		user1, err1 := dao.GetUserByID(session.User1ID)
-		user2, err2 := dao.GetUserByID(session.User2ID)
-		if err1 != nil || err2 != nil {
-			continue // 如果找不到用户，跳过该异常会话
-		}
-
-		// 3.2 获取最后一条消息
-		lastMsg, errMsg := dao.GetLastMessageBySessionID(session.ID)
-		lastContent := ""
-		lastTime := ""
-		if errMsg == nil {
-			lastContent = lastMsg.Content
-			lastTime = lastMsg.CreatedAt.Format("2006-01-02 15:04:05")
-		} else if !errors.Is(errMsg, gorm.ErrRecordNotFound) {
-			// 如果是 RecordNotFound 说明是新会话没消息，这是正常的；其他错误则要响应
-			response.Fail(c, http.StatusInternalServerError, nil, constant.DatabaseError)
-			log.Println(errMsg)
-		}
-
-		// 3.3 统计未读消息数 (我是接收者，所以统计别人发给我的未读)
-		unreadCount, _ := dao.CountUnreadMessages(session.ID, currentUserID)
-
-		// 3.4 构建响应对象
-		item := response.SessionResponse{
-			SessionID:   session.ID,
-			UserID1:     user1.ID,
-			Avatar1:     utils.GetFileURL(user1.Avatar),
-			Username1:   user1.Username,
-			UserID2:     user2.ID,
-			Avatar2:     utils.GetFileURL(user2.Avatar),
-			Username2:   user2.Username,
-			LastMessage: lastContent,
-			LastTime:    lastTime,
-			UnreadCount: uint64(unreadCount),
-		}
-		sessionList = append(sessionList, item)
+	sessionList, err := response.BuildSessionResponses(sessions, currentUserID)
+	if err != nil {
+		// 响应构建函数内部已经返回了错误常量，这里用err响应即可
+		response.Fail(c, http.StatusInternalServerError, nil, err.Error())
 	}
 
-	// 4. 返回结果
-	if sessionList == nil {
-		sessionList = []response.SessionResponse{}
-	}
 	response.SuccessWithData(c, sessionList, constant.GetSessionListSuccess)
 }
 

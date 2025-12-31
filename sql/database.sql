@@ -206,6 +206,8 @@ CREATE TABLE notifications (
                                content TEXT COMMENT '通知内容 (对应 content)',
                                -- 状态与时间
                                is_read TINYINT(1) NOT NULL DEFAULT 0 COMMENT '是否已读 (对应 isRead): 0-未读, 1-已读',
+                               source_id BIGINT UNSIGNED NOT NULL COMMENT '通知来源资源标识ID (对应 documentId或者postId)',
+                               source_type VARCHAR(50) NOT NULL COMMENT '通知来源资源类型 : document，post',
                                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '发送时间 (对应 sendTime)',
                                deleted_at TIMESTAMP NULL DEFAULT NULL COMMENT '软删除标记',
                                PRIMARY KEY (id),

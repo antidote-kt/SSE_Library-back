@@ -75,29 +75,65 @@ func (manager *Manager) Start() {
 
 // SendToUser 向指定用户推送消息
 func (manager *Manager) SendToUser(userID uint64, message interface{}) (err error) {
+	// 1. 获取读锁
+	// 为了防止在读取 Clients map 时，有其他协程（如用户注册/注销）同时修改 map 导致崩溃。
+	// RLock 允许并发读，但阻塞写。
 	manager.Lock.RLock()
+
+	// 2. 从 map 中查找用户
+	// 尝试根据 userID 获取对应的 client 连接对象。
+	// client 是连接对象，ok 是布尔值，表示该用户是否存在于 map 中（是否在线）。
 	client, ok := manager.Clients[userID]
+
+	// 3. 释放读锁
+	// 查找操作已完成，必须尽快释放锁，以免阻塞其他协程的写操作（如用户上线）。
 	manager.Lock.RUnlock()
 
+	// 4. 判断用户是否在线
 	if ok {
-		// 序列化消息
+		// 5. 序列化消息
+		// 将传入的 message 对象（struct 或 map）转换为 JSON 格式的字节切片 ([]byte)。
+		// 网络传输通常使用 []byte。
 		jsonMessage, err := json.Marshal(message)
+
+		// 6. 错误处理
+		// 如果序列化失败（例如结构体里有无法序列化的字段），记录日志并返回错误。
 		if err != nil {
 			log.Println("消息序列化失败:", err)
 			return err
 		}
-		// 将消息放入客户端的发送通道，非阻塞
+
+		// 7. 非阻塞发送逻辑 (Select 语句)
+		// select 用于处理通道 (channel) 操作。
 		select {
+
+		// 8. 尝试发送消息
+		// 试图将 jsonMessage 发送到 client.Send 通道中。
+		// 这里的 client.Send 通常是一个带缓冲的 channel。
 		case client.Send <- jsonMessage:
+			// 如果通道未满，消息成功写入，发送流程结束。
+
+		// 9. 通道阻塞处理 (Default 分支)
+		// 如果 client.Send 通道已满（说明客户端网络卡顿或处理太慢，导致积压），
+		// select 会立即走 default 分支，而不会一直阻塞在这里等待。
 		default:
-			// 发送通道已满或阻塞，断开连接
+			// 10. 关闭通道
+			// 既然发不进去，说明连接可能死掉了或者客户端异常。
+			// 关闭 Send 通道，通知写协程退出循环，断开 WebSocket 连接。
 			close(client.Send)
+
+			// 11. 从管理器中移除用户
+			// 【⚠️注意】：这里存在并发安全隐患！
+			// 前面已经在第3步释放了锁，这里直接修改 manager.Clients map 可能会导致 panic (concurrent map writes)。
+			// 正确做法通常是需要重新加写锁 (Lock/Unlock)，或者通过注册/注销通道由管理协程统一处理移除。
 			delete(manager.Clients, userID)
 		}
 	}
-	return nil
 
-	// 否则用户不在线，无需实时发送信息，用户上线后会自动调用相应接口收到消息
+	// 12. 返回 nil
+	// 无论发送成功，还是用户不在线（ok 为 false），方法都返回 nil。
+	// 这意味着如果用户不在线，消息会被直接丢弃（“发后即焚”），符合即时通讯中“未读消息走离线接口，不走 WebSocket”的设计逻辑。
+	return nil
 }
 
 // WritePump 监听 Send 通道，将消息写入 WebSocket

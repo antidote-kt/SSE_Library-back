@@ -10,6 +10,16 @@ import (
 	"gorm.io/gorm"
 )
 
+// CreateNotification 创建通知
+func CreateNotification(notification *models.Notification) error {
+	db := config.GetDB()
+	result := db.Create(notification)
+	if result.Error != nil {
+		return result.Error
+	}
+	return nil
+}
+
 // GetNotificationsByUserId 根据用户ID获取通知列表
 func GetNotificationsByUserId(userId uint64) ([]models.Notification, error) {
 	db := config.GetDB()
@@ -100,7 +110,12 @@ func GetUnreadMessageCount(userId uint64, messageType string) (int64, error) {
 			Where("sessions.user1_id = ? OR sessions.user2_id = ?", userId, userId). // 确保是该用户的会话
 			Where("messages.status = ?", "unread").                                  // 状态未读
 			Where("messages.sender_id != ?", userId).                                // 发送者不是自己
-			Count(&count).Error                                                      // GORM 在使用 db.Model(&models.Message{}) 配合 Joins 和 Count 时会自动生成Select("messages.*")
+			Count(&count).Error                                                      // 统计数量
+		// GORM 在使用 db.Model(&models.Message{}) 配合 Joins 和 Count 时会自动生成：
+		// SELECT count(*)
+		// FROM `messages`
+		// JOIN sessions ON messages.session_id = sessions.id
+		// WHERE `messages`.`deleted_at` IS NULL
 
 		if err != nil {
 			log.Println("查询聊天未读数失败:", err)
