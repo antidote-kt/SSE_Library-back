@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/antidote-kt/SSE_Library-back/config"
+	"github.com/antidote-kt/SSE_Library-back/constant"
 	"github.com/antidote-kt/SSE_Library-back/models"
 )
 
@@ -47,20 +48,46 @@ func GetAllCategories() ([]models.Category, error) {
 	return categories, err
 }
 
-// CountDocumentsByCategory 统计分类下的文档数量
+// CountDocumentsByCategory 统计分类下的文档数量（包括所有子分类，只统计status为open的文档）
 func CountDocumentsByCategory(categoryID uint64) (int64, error) {
 	db := config.GetDB()
+
+	// 获取所有子分类ID
+	descendantIDs, err := getAllDescendantCategoryIDs(categoryID)
+	if err != nil {
+		return 0, err
+	}
+
+	// 构建分类ID列表：包括当前分类和所有子分类
+	categoryIDs := []uint64{categoryID}
+	categoryIDs = append(categoryIDs, descendantIDs...)
+
+	// 统计文档数量（只统计status为open且未删除的文档）
 	var count int64
-	err := db.Model(&models.Document{}).Where("category_id = ? AND deleted_at IS NULL", categoryID).Count(&count).Error
+	err = db.Model(&models.Document{}).
+		Where("category_id IN ? AND status = ? AND deleted_at IS NULL", categoryIDs, constant.DocumentStatusOpen).
+		Count(&count).Error
 	return count, err
 }
 
-// GetDocumentReadCountsByCategory 获取分类下所有文档的总浏览量
+// GetDocumentReadCountsByCategory 获取分类下所有文档的总浏览量（包括所有子分类，只统计status为open的文档）
 func GetDocumentReadCountsByCategory(categoryID uint64) (int64, error) {
 	db := config.GetDB()
+
+	// 获取所有子分类ID
+	descendantIDs, err := getAllDescendantCategoryIDs(categoryID)
+	if err != nil {
+		return 0, err
+	}
+
+	// 构建分类ID列表：包括当前分类和所有子分类
+	categoryIDs := []uint64{categoryID}
+	categoryIDs = append(categoryIDs, descendantIDs...)
+
+	// 统计总浏览量（只统计status为open且未删除的文档）
 	var totalReads int64
-	err := db.Model(&models.Document{}).
-		Where("category_id = ? AND deleted_at IS NULL", categoryID).
+	err = db.Model(&models.Document{}).
+		Where("category_id IN ? AND status = ? AND deleted_at IS NULL", categoryIDs, constant.DocumentStatusOpen).
 		Select("COALESCE(SUM(read_counts), 0)").
 		Scan(&totalReads).Error
 	return totalReads, err
@@ -112,16 +139,52 @@ func GetCategoriesByParentID(parentID uint64) ([]models.Category, error) {
 	return categories, err
 }
 
-// GetPostHeatByCategory 获取分类下所有文档关联的帖子总热度（点赞数+收藏数+评论数）
+// getAllDescendantCategoryIDs 递归获取所有子分类ID
+func getAllDescendantCategoryIDs(categoryID uint64) ([]uint64, error) {
+	var allIDs []uint64
+
+	// 获取直接子分类
+	children, err := GetCategoriesByParentID(categoryID)
+	if err != nil {
+		return nil, err
+	}
+
+	// 递归获取每个子分类的所有子分类ID
+	for _, child := range children {
+		allIDs = append(allIDs, child.ID)
+		// 递归获取子分类的子分类
+		descendants, err := getAllDescendantCategoryIDs(child.ID)
+		if err != nil {
+			return nil, err
+		}
+		allIDs = append(allIDs, descendants...)
+	}
+
+	return allIDs, nil
+}
+
+// GetPostHeatByCategory 获取分类下所有文档关联的帖子总热度（包括所有子分类，只统计status为open的文档关联的帖子）
+// 热度 = 点赞数+收藏数+评论数
 func GetPostHeatByCategory(categoryID uint64) (int64, error) {
 	db := config.GetDB()
+
+	// 获取所有子分类ID
+	descendantIDs, err := getAllDescendantCategoryIDs(categoryID)
+	if err != nil {
+		return 0, err
+	}
+
+	// 构建分类ID列表：包括当前分类和所有子分类
+	categoryIDs := []uint64{categoryID}
+	categoryIDs = append(categoryIDs, descendantIDs...)
+
 	var totalHeat int64
 
-	err := db.Table("posts").
+	err = db.Table("posts").
 		Select("COALESCE(SUM(posts.like_count + posts.collect_count + posts.comment_count), 0)").
 		Joins("JOIN post_documents ON posts.id = post_documents.post_id AND post_documents.deleted_at IS NULL").
 		Joins("JOIN documents ON post_documents.document_id = documents.id AND documents.deleted_at IS NULL").
-		Where("documents.category_id = ? AND posts.deleted_at IS NULL", categoryID).
+		Where("documents.category_id IN ? AND documents.status = ? AND documents.deleted_at IS NULL AND posts.deleted_at IS NULL", categoryIDs, constant.DocumentStatusOpen).
 		Scan(&totalHeat).Error
 
 	return totalHeat, err

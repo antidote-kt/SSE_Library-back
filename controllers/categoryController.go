@@ -146,6 +146,7 @@ func GetCategoriesAndCourses(c *gin.Context) {
 
 // SearchCategoriesAndCourses 搜索分类和课程
 // GET /api/searchcat?name=xxx
+// 如果搜索到的是课程，只返回课程；如果搜索到的是分类，返回完整结构
 func SearchCategoriesAndCourses(c *gin.Context) {
 	// 获取分类和课程
 	name := c.Query("name")
@@ -167,6 +168,62 @@ func SearchCategoriesAndCourses(c *gin.Context) {
 		return
 	}
 
+	// 区分匹配到的分类和课程
+	var matchedCategories []models.Category // 匹配到的分类（IsCourse = false）
+	var matchedCourses []models.Category    // 匹配到的课程（IsCourse = true）
+
+	for _, category := range categories {
+		if category.IsCourse {
+			matchedCourses = append(matchedCourses, category)
+		} else {
+			matchedCategories = append(matchedCategories, category)
+		}
+	}
+
+	// 如果匹配到的都是课程，直接返回课程列表
+	if len(matchedCategories) == 0 && len(matchedCourses) > 0 {
+		fileCounts := make(map[uint64]int64)
+		readCounts := make(map[uint64]int64)
+
+		for _, course := range matchedCourses {
+			// 统计文档数量
+			fileCount, err := dao.CountDocumentsByCategory(course.ID)
+			if err != nil {
+				response.Fail(c, constant.StatusInternalServerError, nil, constant.MsgCategoryCountFailed)
+				return
+			}
+			fileCounts[course.ID] = fileCount
+
+			// 统计浏览量
+			readCount, err := dao.GetDocumentReadCountsByCategory(course.ID)
+			if err != nil {
+				response.Fail(c, constant.StatusInternalServerError, nil, constant.MsgCategoryReadCountFailed)
+				return
+			}
+			readCounts[course.ID] = readCount
+		}
+
+		// 构建课程响应列表
+		courseResponses := make([]*CategoryResponse, 0, len(matchedCourses))
+		for _, course := range matchedCourses {
+			courseResp := &CategoryResponse{
+				ID:          course.ID,
+				Name:        course.Name,
+				IsCourse:    course.IsCourse,
+				FileCounts:  fileCounts[course.ID],
+				ReadCounts:  readCounts[course.ID],
+				Description: course.Description,
+				ParentID:    course.ParentID,
+				Children:    make([]*CategoryResponse, 0), // 课程不包含子节点
+			}
+			courseResponses = append(courseResponses, courseResp)
+		}
+
+		response.SuccessWithData(c, courseResponses, constant.MsgGetCategoriesSuccess)
+		return
+	}
+
+	// 如果有分类被匹配到，构建完整的分类树结构
 	categoryIDMap := make(map[uint64]bool)
 	for _, category := range categories {
 		categoryIDMap[category.ID] = true
@@ -191,6 +248,7 @@ func SearchCategoriesAndCourses(c *gin.Context) {
 			return
 		}
 
+		// 获取所有父分类，构建完整树结构
 		parentIDSet := make(map[uint64]bool)
 		for _, cat := range allCategories {
 			if cat.ParentID != nil {
@@ -231,6 +289,26 @@ func SearchCategoriesAndCourses(c *gin.Context) {
 				}
 			}
 		}
+
+		// 获取所有子分类（用于完整树结构）
+		for _, cat := range allCategories {
+			children, err := dao.GetCategoriesByParentID(cat.ID)
+			if err == nil {
+				for _, child := range children {
+					// 检查子分类是否已经在列表中
+					found := false
+					for _, existingCat := range allCategories {
+						if existingCat.ID == child.ID {
+							found = true
+							break
+						}
+					}
+					if !found {
+						allCategories = append(allCategories, child)
+					}
+				}
+			}
+		}
 	}
 
 	fileCounts := make(map[uint64]int64)
@@ -254,7 +332,7 @@ func SearchCategoriesAndCourses(c *gin.Context) {
 		readCounts[category.ID] = readCount
 	}
 
-	// 6. 构建分类树
+	// 构建分类树
 	categoryTree := buildCategoryTree(allCategories, fileCounts, readCounts)
 
 	response.SuccessWithData(c, categoryTree, constant.MsgGetCategoriesSuccess)
