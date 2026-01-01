@@ -196,6 +196,7 @@ const (
 	GetSessionListSuccess     = "获取会话列表成功"
 	CreateNewSessionSuccess   = "创建新会话成功"
 	GetSessionUserFailed      = "会话用户不存在"
+	MarkSessionReadSuccess    = "标记会话为已读成功"
 )
 
 // websocket相关常量
