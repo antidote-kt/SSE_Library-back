@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/antidote-kt/SSE_Library-back/config"
 	"github.com/antidote-kt/SSE_Library-back/constant"
 	"github.com/antidote-kt/SSE_Library-back/dao"
 	"github.com/antidote-kt/SSE_Library-back/dto"
@@ -467,6 +468,28 @@ func GetSessionList(c *gin.Context) {
 	}
 
 	response.SuccessWithData(c, sessionList, constant.GetSessionListSuccess)
+}
+
+// MarkSessionRead 标记会话为已读（将会话内所有消息标记为已读）
+// GET /api/markSessionRead
+func MarkSessionRead(c *gin.Context) {
+	var req dto.MarkSessionRead
+	// 1. 绑定参数 (multipart/form-data)
+	if err := c.ShouldBind(&req); err != nil {
+		response.Fail(c, http.StatusBadRequest, nil, constant.ParamParseError)
+		return
+	}
+	
+	// 2.获取当前用户信息
+	claims, exists := c.Get(constant.UserClaims)
+	if !exists {
+		response.Fail(c, http.StatusUnauthorized, nil, constant.GetUserInfoFailed)
+	}
+	userClaims := claims.(*utils.MyClaims)
+
+	db := config.GetDB()
+	// 将该会话中的所有消息标记为已读
+	db.Model(&models.Message{}).Where("session_id = ? AND sender_id != ?", req.SessionID, userClaims.UserID).Update("status", "read")
 }
 
 // ConnectWS : WebSocket 连接接口

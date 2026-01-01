@@ -81,13 +81,6 @@ func GetPostList(key string, order string) ([]models.Post, error) {
 	return posts, nil
 }
 
-// IncrementPostViewCount 增加帖子浏览量
-// 使用 UpdateColumn 进行原子更新 (view_count = view_count + 1)
-func IncrementPostViewCount(id uint64) error {
-	db := config.GetDB()
-	return db.Model(&models.Post{}).Where("id = ?", id).UpdateColumn("view_count", gorm.Expr("view_count + ?", 1)).Error
-}
-
 // LikePost 点赞帖子 (事务处理：插入记录 + 计数+1)
 func LikePost(userID, postID uint64) error {
 	db := config.GetDB()

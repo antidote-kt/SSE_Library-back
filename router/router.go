@@ -45,12 +45,13 @@ func SetupRouter() *gin.Engine {
 		authed.POST("/createChat", controllers.CreateChatSession)                   // 创建聊天会话
 		authed.POST("/chat/message", controllers.SendMessage)                       // 发送消息
 		authed.GET("/chat/sessions", controllers.GetSessionList)                    // 获取当前用户的所有会话列表
-		authed.GET("/chat/messages", controllers.GetChatMessages)                   //获取聊天记录
+		authed.GET("/chat/messages", controllers.GetChatMessages)                   // 获取聊天记录
+		authed.GET("/markSessionRead", controllers.MarkSessionRead)                 // 标记会话为已读(将会话内所有消息标记为已读)
 		authed.GET("/chat/globalSearch", controllers.SearchChatMessages)            // 全局搜索聊天记录
-		authed.GET("/getReminder", controllers.GetNotification)                     //获取提醒
-		authed.POST("/markRead", controllers.MarkNotification)                      //标记提醒为已读
+		authed.GET("/getReminder", controllers.GetNotification)                     // 获取提醒
+		authed.POST("/markRead", controllers.MarkNotification)                      // 标记提醒为已读
 		authed.GET("/unreadMessage", controllers.GetUnreadMessage)                  // 获取总的未读消息（包括聊天记录和通知提醒）
-		authed.DELETE("/post", controllers.DeletePost)                              //删除帖子
+		authed.DELETE("/post", controllers.DeletePost)                              // 删除帖子
 
 		// 用户相关操作
 		userApi := authed.Group("/user")

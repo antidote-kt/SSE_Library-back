@@ -210,11 +210,6 @@ func GetDocumentByID(c *gin.Context) {
 		response.Fail(c, http.StatusInternalServerError, nil, constant.DocumentUpdateFail)
 	}
 
-	// 增加浏览次数 (异步执行)
-	go func() {
-		_ = dao.IncrementDocumentViewCount(documentID)
-	}()
-
 	// 记录浏览历史 (异步执行)
 	// 从JWT解析用户信息
 	if claims, exists := c.Get(constant.UserClaims); exists {

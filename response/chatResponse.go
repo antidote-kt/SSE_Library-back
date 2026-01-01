@@ -16,10 +16,10 @@ type SearchChatResult struct {
 	SessionID   uint64 `json:"sessionId"`
 	UserID1     uint64 `json:"userId1"`
 	UserAvatar1 string `json:"userAvatar1"`
-	UserName1   string `json:"userName1"`
+	UserName1   string `json:"username1"`
 	UserID2     uint64 `json:"userId2"`
 	UserAvatar2 string `json:"userAvatar2"`
-	UserName2   string `json:"userName2"`
+	UserName2   string `json:"username2"`
 	MatchCount  uint64 `json:"matchedCount"`
 	LatestMsg   string `json:"example"`
 }
