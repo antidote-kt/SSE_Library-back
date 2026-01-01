@@ -46,7 +46,7 @@ func SetupRouter() *gin.Engine {
 		authed.POST("/chat/message", controllers.SendMessage)                       // 发送消息
 		authed.GET("/chat/sessions", controllers.GetSessionList)                    // 获取当前用户的所有会话列表
 		authed.GET("/chat/messages", controllers.GetChatMessages)                   // 获取聊天记录
-		authed.GET("/markSessionRead", controllers.MarkSessionRead)                 // 标记会话为已读(将会话内所有消息标记为已读)
+		authed.POST("/markSessionRead", controllers.MarkSessionRead)                // 标记会话为已读(将会话内所有消息标记为已读)
 		authed.GET("/chat/globalSearch", controllers.SearchChatMessages)            // 全局搜索聊天记录
 		authed.GET("/getReminder", controllers.GetNotification)                     // 获取提醒
 		authed.POST("/markRead", controllers.MarkNotification)                      // 标记提醒为已读
