@@ -1,8 +1,7 @@
 package response
 
 import (
-	"strconv"
-
+	"github.com/antidote-kt/SSE_Library-back/dao"
 	"github.com/antidote-kt/SSE_Library-back/models"
 	"github.com/antidote-kt/SSE_Library-back/utils"
 )
@@ -42,13 +41,14 @@ func BuildHomepageResponse(user models.User, collectionList, historyList []model
 	var collectionResponses []InfoBriefResponse
 	for _, doc := range collectionList {
 		// 将单个文档信息转换为 InfoBriefResponse 格式
+		category, _ := dao.GetCategoryByID(doc.CategoryID)
 		docBrief := InfoBriefResponse{
 			Name:        doc.Name,
 			DocumentID:  doc.ID,
 			Type:        doc.Type,
 			UploadTime:  doc.CreatedAt.Format("2006-01-02 15:04:05"),
 			Status:      doc.Status,
-			Category:    strconv.FormatUint(doc.CategoryID, 10),
+			Category:    category.Name,
 			Collections: doc.Collections,
 			ReadCounts:  doc.ReadCounts,
 			Cover:       utils.GetFileURL(doc.Cover),
@@ -64,13 +64,14 @@ func BuildHomepageResponse(user models.User, collectionList, historyList []model
 	var historyResponses []InfoBriefResponse
 	for _, doc := range historyList {
 		// 将单个文档信息转换为 InfoBriefResponse 格式
+		category, _ := dao.GetCategoryByID(doc.CategoryID)
 		docBrief := InfoBriefResponse{
 			Name:        doc.Name,
 			DocumentID:  doc.ID,
 			Type:        doc.Type,
 			UploadTime:  doc.CreatedAt.Format("2006-01-02 15:04:05"),
 			Status:      doc.Status,
-			Category:    strconv.FormatUint(doc.CategoryID, 10),
+			Category:    category.Name,
 			Collections: doc.Collections,
 			ReadCounts:  doc.ReadCounts,
 			Cover:       utils.GetFileURL(doc.Cover),
