@@ -479,17 +479,20 @@ func MarkSessionRead(c *gin.Context) {
 		response.Fail(c, http.StatusBadRequest, nil, constant.ParamParseError)
 		return
 	}
-	
+
 	// 2.获取当前用户信息
 	claims, exists := c.Get(constant.UserClaims)
 	if !exists {
 		response.Fail(c, http.StatusUnauthorized, nil, constant.GetUserInfoFailed)
+		return
 	}
 	userClaims := claims.(*utils.MyClaims)
 
 	db := config.GetDB()
 	// 将该会话中的所有消息标记为已读
 	db.Model(&models.Message{}).Where("session_id = ? AND sender_id != ?", req.SessionID, userClaims.UserID).Update("status", "read")
+
+	response.Success(c, nil, constant.MarkSessionReadSuccess)
 }
 
 // ConnectWS : WebSocket 连接接口
