@@ -5,6 +5,7 @@
       <functions>
         <function importPath="github.com/antidote-kt/SSE_Library-back/dao" name="GetCategoryByID" />
         <function importPath="github.com/antidote-kt/SSE_Library-back/dao" name="GetUserByEmail" />
+        <function importPath="github.com/antidote-kt/SSE_Library-back/dao" name="GetCommentByID" />
       </functions>
     </inspection_tool>
     <inspection_tool class="SqlNoDataSourceInspection" enabled="false" level="WARNING" enabled_by_default="false" />

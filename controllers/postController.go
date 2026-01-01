@@ -102,12 +102,7 @@ func GetPostDetail(c *gin.Context) {
 		return
 	}
 
-	// 3. 增加浏览量 (异步)
-	go func() {
-		_ = dao.IncrementPostViewCount(postID)
-	}()
-
-	// 4. 记录浏览历史 (异步)
+	// 3. 记录浏览历史 (异步)
 	if claims, exists := c.Get(constant.UserClaims); exists {
 		userClaims := claims.(*utils.MyClaims)
 		go func(uid uint64, pid uint64) {
@@ -116,17 +111,17 @@ func GetPostDetail(c *gin.Context) {
 		}(userClaims.UserID, postID) // 回调函数实现异步
 	}
 
-	// 5. 查询帖子相关文档
+	// 4. 查询帖子相关文档
 	postdocs, err := dao.GetDocumentsByPostID(post.ID)
 	if err != nil {
 		response.Fail(c, http.StatusInternalServerError, nil, constant.DatabaseError)
 		return
 	}
 
-	// 6. 调用response层构建响应数据
+	// 5. 调用response层构建响应数据
 	postDetail := response.BuildPostDetailResponse(post, postdocs)
 
-	// 7. 返回成功响应
+	// 6. 返回成功响应
 	response.SuccessWithData(c, postDetail, constant.GetPostDetailSuccess)
 
 }
@@ -172,41 +167,44 @@ func DoLikePost(c *gin.Context) {
 		response.Fail(c, http.StatusInternalServerError, nil, constant.DatabaseError)
 		return
 	}
-	// 4.2 创建通知
-	notification := models.Notification{
-		ReceiverID: post.SenderID,
-		Type:       "like",
-		Content:    fmt.Sprintf("你发表的帖子《%s》被用户\"  %s \" 点赞", post.Title, user.Username),
-		IsRead:     false,
-		SourceID:   post.ID,
-		SourceType: constant.PostType,
-	}
-	err = dao.CreateNotification(&notification)
-	if err != nil {
-		log.Println("创建通知失败:", err) // 通知创建失败不影响点赞操作本身，因此这里只打印日志而不返回空切片和错误
-	}
-	// 3.发送websocket通知
-	// 构建提醒数据格式
-	wsData := gin.H{
-		"reminderId":   notification.ID,
-		"remindertype": notification.Type,
-		"content":      notification.Content,
-		"sendTime":     notification.CreatedAt,
-		"sourceId":     notification.SourceID,
-		"sourceType":   notification.SourceType,
-	}
+	// 仅当点赞人与发帖人本人不同时才创建通知
+	if userClaims.UserID != post.SenderID {
+		// 4.2 创建通知
+		notification := models.Notification{
+			ReceiverID: post.SenderID,
+			Type:       "like",
+			Content:    fmt.Sprintf("你发表的帖子《%s》被用户\"  %s \" 点赞", post.Title, user.Username),
+			IsRead:     false,
+			SourceID:   post.ID,
+			SourceType: constant.PostType,
+		}
+		err = dao.CreateNotification(&notification)
+		if err != nil {
+			log.Println("创建通知失败:", err) // 通知创建失败不影响点赞操作本身，因此这里只打印日志而不返回空切片和错误
+		}
+		// 3.发送websocket通知
+		// 构建提醒数据格式
+		wsData := gin.H{
+			"reminderId":   notification.ID,
+			"remindertype": notification.Type,
+			"content":      notification.Content,
+			"sendTime":     notification.CreatedAt,
+			"sourceId":     notification.SourceID,
+			"sourceType":   notification.SourceType,
+		}
 
-	// 将评论信息推送给接收者 (如果在线) ，实现客户端实时接收
-	// 调用 WebSocket 管理器发送
-	err = utils.WSManager.SendToUser(post.SenderID, utils.WSMessage{
-		Type:       "reminder",
-		ReceiverID: post.SenderID,
-		Data:       wsData,
-	})
-	if err != nil {
-		// 实时推送失败，但消息已持久化，接收者下次上线时可通过 GetNotification 拉取新提醒
-		// 因此仅打印日志不返回错误
-		log.Printf("WS推送给接收者 %d 失败(可能离线): %v", post.SenderID, err)
+		// 将评论信息推送给接收者 (如果在线) ，实现客户端实时接收
+		// 调用 WebSocket 管理器发送
+		err = utils.WSManager.SendToUser(post.SenderID, utils.WSMessage{
+			Type:       "reminder",
+			ReceiverID: post.SenderID,
+			Data:       wsData,
+		})
+		if err != nil {
+			// 实时推送失败，但消息已持久化，接收者下次上线时可通过 GetNotification 拉取新提醒
+			// 因此仅打印日志不返回错误
+			log.Printf("WS推送给接收者 %d 失败(可能离线): %v", post.SenderID, err)
+		}
 	}
 
 	// 5. 返回成功响应
