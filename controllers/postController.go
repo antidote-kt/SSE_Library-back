@@ -328,7 +328,7 @@ func GetUserPostList(c *gin.Context) {
 func DeletePost(c *gin.Context) {
 	// 1. 绑定请求参数
 	var req dto.DeletePostDTO
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if err := c.ShouldBind(&req); err != nil {
 		response.Fail(c, http.StatusBadRequest, nil, constant.ParamParseError)
 		return
 	}
