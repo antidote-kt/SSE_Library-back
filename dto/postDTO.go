@@ -21,5 +21,5 @@ type LikePostDTO struct {
 }
 
 type DeletePostDTO struct {
-	PostID uint64 `json:"postId"`
+	PostID uint64 `form:"postId"`
 }
