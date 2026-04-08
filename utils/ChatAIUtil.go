@@ -8,7 +8,6 @@ import (
 	"io"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/antidote-kt/SSE_Library-back/constant"
 	"github.com/gin-gonic/gin"
@@ -145,14 +144,8 @@ func StreamChat(c *gin.Context, messages []Message, enableThinking bool) error {
 	req.Header.Set("Authorization", "Bearer "+apiKey)
 	req.Header.Set("Content-Type", "application/json")
 
-	// 创建一个实时的HTTP客户端
-	client := &http.Client{
-		Transport: &http.Transport{
-			DisableKeepAlives:     false,
-			DisableCompression:    true, // 禁用压缩，确保数据实时到达
-			ResponseHeaderTimeout: 30 * time.Second,
-		},
-	}
+	// 使用默认的HTTP客户端
+	client := &http.Client{}
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -166,13 +159,6 @@ func StreamChat(c *gin.Context, messages []Message, enableThinking bool) error {
 	// 启动协程处理流式响应
 	go processStreamResponse(resp, dataChan, enableThinking)
 
-	// 【固定】SSE 响应头 —— 必须齐全
-	c.Header("Content-Type", "text/event-stream; charset=utf-8")
-	c.Header("Cache-Control", "no-cache, no-transform") // 关键
-	c.Header("Connection", "keep-alive")
-	c.Header("X-Accel-Buffering", "no") // 关键：禁止 Nginx/ Gin 缓冲
-	c.Header("Access-Control-Allow-Origin", "*")
-
 	//  Gin Stream 实时推送版本
 	c.Stream(func(w io.Writer) bool {
 		msg, ok := <-dataChan
@@ -184,10 +170,6 @@ func StreamChat(c *gin.Context, messages []Message, enableThinking bool) error {
 			// 发送结束事件
 			c.SSEvent("end", "DONE")
 
-			// 强制刷新给前端
-			if f, ok := w.(http.Flusher); ok {
-				f.Flush()
-			}
 			return false
 		}
 
@@ -199,11 +181,6 @@ func StreamChat(c *gin.Context, messages []Message, enableThinking bool) error {
 		} else {
 			// 发送普通内容
 			c.SSEvent("message", msg)
-		}
-
-		// ✅ 关键：每次发完必须立刻刷新！
-		if f, ok := w.(http.Flusher); ok {
-			f.Flush()
 		}
 
 		return true

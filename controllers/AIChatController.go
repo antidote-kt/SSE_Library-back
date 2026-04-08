@@ -23,9 +23,8 @@ func TestStreamChat(c *gin.Context) {
 			},
 		},
 	}
-
 	// 调用 StreamChat 函数处理流式响应，默认不启用思考内容推送
-	if err := utils.StreamChat(c, req.Messages, false); err != nil {
+	if err := utils.StreamChat(c, req.Messages, true); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
