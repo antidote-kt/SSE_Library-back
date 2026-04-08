@@ -34,3 +34,8 @@ email:
   username:
   password:  # 注意：这里通常不是邮箱登录密码，而是SMTP授权码
   from_address:
+
+dashscope:
+  api_key:
+  model:
+  endpoint: https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions
