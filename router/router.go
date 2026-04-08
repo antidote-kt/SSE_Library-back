@@ -16,6 +16,8 @@ func SetupRouter() *gin.Engine {
 	api.POST("/VCode", controllers.SendVerificationCode) // 请求验证码（临时生成，采用POST）
 	api.PUT("/Password", controllers.ChangePassword)     //修改密码
 	api.GET("/ws", controllers.ConnectWS)                // WebSocket连接
+	// AI 聊天测试接口
+	api.GET("/ai/chat/test", controllers.TestStreamChat) // 测试 AI 聊天流式响应（直接构造请求示例）
 
 	// --- 需要认证才能访问的路由 ---
 	authed := api.Group("/")
