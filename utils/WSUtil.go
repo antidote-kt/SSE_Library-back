@@ -60,7 +60,7 @@ func (manager *Manager) Start() {
 			manager.Lock.Lock()
 			// 只有当 Map 中存的 Client 指针 等于 当前要注销的 Client 指针时，才执行删除和关闭
 			//（也就是说如果本次注销是旧连接自己的注销逻辑而不是新连接的强制注销，那么就不会执行，因为Map 中存的 Client 指针）
-			// 这防止了：
+			// 以上操作可以防止：
 			// 1. 旧连接注销时把新连接删了
 			// 2. 旧连接被 Register 关闭后，ReadPump协程断开触发的 Unregister 再次关闭导致 Panic
 			if targetClient, ok := manager.Clients[client.ID]; ok && targetClient == client {

@@ -156,13 +156,8 @@ func DoLikePost(c *gin.Context) {
 	}
 
 	// 4. 为点赞结果创建通知，并插入通知表，发送websocket通知
-	// 4.1 获取点赞的帖子对象以及发帖人
+	// 4.1 获取点赞的帖子对象
 	post, err := dao.GetPostByID(req.PostID)
-	if err != nil {
-		response.Fail(c, http.StatusInternalServerError, nil, constant.DatabaseError)
-		return
-	}
-	user, err := dao.GetUserByID(post.SenderID)
 	if err != nil {
 		response.Fail(c, http.StatusInternalServerError, nil, constant.DatabaseError)
 		return
@@ -173,7 +168,7 @@ func DoLikePost(c *gin.Context) {
 		notification := models.Notification{
 			ReceiverID: post.SenderID,
 			Type:       "like",
-			Content:    fmt.Sprintf("你发表的帖子《%s》被用户\"  %s \" 点赞", post.Title, user.Username),
+			Content:    fmt.Sprintf("你发表的帖子《%s》被用户\"  %s \" 点赞", post.Title, userClaims.Username),
 			IsRead:     false,
 			SourceID:   post.ID,
 			SourceType: constant.PostType,
