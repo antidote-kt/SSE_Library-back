@@ -29,6 +29,9 @@ func SetupRouter() *gin.Engine {
 		authed.GET("/ai/chat/sessions", controllers.GetAISessions)
 		authed.PUT("/ai/chat/sessions", controllers.UpdateAISession)
 
+		// AI 消息接口
+		authed.POST("/ai/chat/sessions/:sessionId/stop", controllers.CancelAISessionStream)
+
 		// 通用接口
 		authed.GET("/comment/:commentId", controllers.GetSingleComment)    // 获取单条评论
 		authed.GET("/user/:user_id", controllers.GetProfile)               // 查看个人主页

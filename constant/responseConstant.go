@@ -225,6 +225,9 @@ const (
 	DeleteAISessionFailed  = "AI会话删除失败"
 	UpdateAISessionSuccess = "AI会话更新成功"
 	UpdateAISessionFailed  = "AI会话更新失败"
+	CancelAISessionSuccess = "终止AI输出成功"
+	CancelAISessionFailed  = "终止AI输出失败"
+	AISessionTaskNotExist  = "任务不存在或已结束"
 )
 
 // 帖子相关常量

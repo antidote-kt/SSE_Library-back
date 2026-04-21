@@ -17,6 +17,12 @@ type AISessionListItemResponse struct {
 	LastTime      *string `json:"lasttime"`
 }
 
+type CancelAISessionResponse struct {
+	SessionID uint64 `json:"sessionId"`
+	MessageID uint64 `json:"messageId"`
+	Status    string `json:"status"`
+}
+
 func BuildCreateAISessionResponse(session models.AISession) CreateAISessionResponse {
 	return CreateAISessionResponse{
 		AISessionID: session.ID,
@@ -47,4 +53,12 @@ func BuildAISessionListResponses(sessions []models.AISession) []AISessionListIte
 		responses[i] = BuildAISessionListItemResponse(session)
 	}
 	return responses
+}
+
+func BuildCancelAISessionResponse(sessionId uint64, messageId uint64, status string) CancelAISessionResponse {
+	return CancelAISessionResponse{
+		SessionID: sessionId,
+		MessageID: messageId,
+		Status:    status,
+	}
 }

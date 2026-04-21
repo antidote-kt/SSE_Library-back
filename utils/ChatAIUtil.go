@@ -3,11 +3,13 @@ package utils
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/antidote-kt/SSE_Library-back/constant"
 	"github.com/gin-gonic/gin"
@@ -50,21 +52,29 @@ type StreamResult struct {
 }
 
 // processStreamResponse 处理流式响应并将数据发送到通道，同时收集完整内容
-func processStreamResponse(resp *http.Response, dataChan chan string, enableThinking bool, resultChan chan *StreamResult) {
+func processStreamResponse(ctx context.Context, resp *http.Response, dataChan chan string, enableThinking bool, resultChan chan *StreamResult) {
 	defer close(dataChan)
 	defer close(resultChan)
 
 	var contentBuilder strings.Builder
 	var thinkingBuilder strings.Builder
 
-	// 使用最小缓冲区，确保实时读取
-	reader := bufio.NewReaderSize(resp.Body, 128) // 更小的缓冲区
+	reader := bufio.NewReaderSize(resp.Body, 128)
+
+	// 启动一个goroutine监听ctx，取消时直接关闭resp.Body，避免ReadString一直阻塞
+	go func() {
+		<-ctx.Done()
+		resp.Body.Close()
+	}()
 
 	for {
 		line, err := reader.ReadString('\n')
 		if err != nil {
-			if err == io.EOF {
-				break
+			// 出错了（可能是被取消、EOF或其他错误），发送已收集的内容并返回
+			dataChan <- "[END_OF_STREAM]"
+			resultChan <- &StreamResult{
+				Content:         contentBuilder.String(),
+				ThinkingContent: thinkingBuilder.String(),
 			}
 			return
 		}
@@ -83,7 +93,11 @@ func processStreamResponse(resp *http.Response, dataChan chan string, enableThin
 		// 跳过结束标记
 		if line == "[DONE]" {
 			dataChan <- "[END_OF_STREAM]"
-			break
+			resultChan <- &StreamResult{
+				Content:         contentBuilder.String(),
+				ThinkingContent: thinkingBuilder.String(),
+			}
+			return
 		}
 
 		// 直接解析 JSON
@@ -111,21 +125,20 @@ func processStreamResponse(resp *http.Response, dataChan chan string, enableThin
 			if chunk.Choices[0].FinishReason == "stop" {
 				// 发送结束标记
 				dataChan <- "[END_OF_STREAM]"
-				break
+				resultChan <- &StreamResult{
+					Content:         contentBuilder.String(),
+					ThinkingContent: thinkingBuilder.String(),
+				}
+				return
 			}
 		}
 	}
-
-	resultChan <- &StreamResult{
-		Content:         contentBuilder.String(),
-		ThinkingContent: thinkingBuilder.String(),
-	}
 }
 
-// StreamChat 处理 SSE 流式响应
+// StreamChatWithSessionID 处理 SSE 流式响应（有sessionId版本，支持跨请求取消）
 // enableThinking 是否启用思考内容推送
 // 返回值: StreamResult（包含完整内容和思考内容）, error
-func StreamChat(c *gin.Context, messages []Message, enableThinking bool) (*StreamResult, error) {
+func StreamChatWithSessionID(c *gin.Context, sessionId string, messages []Message, enableThinking bool) (*StreamResult, error) {
 	// 从配置中读取参数
 	model := viper.GetString("dashscope.model")
 	if model == "" {
@@ -141,6 +154,14 @@ func StreamChat(c *gin.Context, messages []Message, enableThinking bool) (*Strea
 	if endpoint == "" {
 		endpoint = "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"
 	}
+
+	// 创建可取消的上下文
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// 注册任务，支持跨请求取消
+	RegisterAISessionStreamTask(sessionId, cancel)
+	defer UnregisterAISessionStreamTask(sessionId)
 
 	// 构建请求体
 	requestBody := RequestBody{
@@ -159,7 +180,7 @@ func StreamChat(c *gin.Context, messages []Message, enableThinking bool) (*Strea
 	}
 
 	// 创建并发送请求
-	req, err := http.NewRequest("POST", endpoint, bytes.NewBuffer(jsonData))
+	req, err := http.NewRequestWithContext(ctx, "POST", endpoint, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return nil, err
 	}
@@ -181,9 +202,9 @@ func StreamChat(c *gin.Context, messages []Message, enableThinking bool) (*Strea
 	resultChan := make(chan *StreamResult)
 
 	// 启动协程处理流式响应
-	go processStreamResponse(resp, dataChan, enableThinking, resultChan)
+	go processStreamResponse(ctx, resp, dataChan, enableThinking, resultChan)
 
-	//  Gin Stream 实时推送版本
+	// Gin Stream 实时推送版本
 	c.Stream(func(w io.Writer) bool {
 		msg, ok := <-dataChan
 		if !ok {
@@ -212,6 +233,15 @@ func StreamChat(c *gin.Context, messages []Message, enableThinking bool) (*Strea
 	// 获取完整结果
 	streamResult := <-resultChan
 	return streamResult, nil
+}
+
+// StreamChat 处理 SSE 流式响应（无sessionId版本，会生成临时sessionId）
+// enableThinking 是否启用思考内容推送
+// 返回值: StreamResult（包含完整内容和思考内容）, error
+func StreamChat(c *gin.Context, messages []Message, enableThinking bool) (*StreamResult, error) {
+	// 生成临时sessionId
+	tempSessionId := fmt.Sprintf("temp-session-%d", time.Now().UnixNano())
+	return StreamChatWithSessionID(c, tempSessionId, messages, enableThinking)
 }
 
 // Chat 非流式调用AI模型，返回完整内容
