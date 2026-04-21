@@ -214,6 +214,22 @@ const (
 	GetUnreadMessageSuccess = "获取总的未读消息数量成功"
 )
 
+// AI会话相关常量
+const (
+	CreateAISessionSuccess = "AI会话创建成功"
+	CreateAISessionFailed  = "AI会话创建失败"
+	GetAISessionsSuccess   = "获取AI会话列表成功"
+	GetAISessionsFailed    = "获取AI会话列表失败"
+	AISessionNotExist      = "AI会话不存在"
+	DeleteAISessionSuccess = "AI会话删除成功"
+	DeleteAISessionFailed  = "AI会话删除失败"
+	UpdateAISessionSuccess = "AI会话更新成功"
+	UpdateAISessionFailed  = "AI会话更新失败"
+	CancelAISessionSuccess = "终止AI输出成功"
+	CancelAISessionFailed  = "终止AI输出失败"
+	AISessionTaskNotExist  = "任务不存在或已结束"
+)
+
 // 帖子相关常量
 const (
 	CreatePostFailed         = "发帖失败"
