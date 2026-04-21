@@ -17,12 +17,18 @@ func SetupRouter() *gin.Engine {
 	api.PUT("/Password", controllers.ChangePassword)     //修改密码
 	api.GET("/ws", controllers.ConnectWS)                // WebSocket连接
 	// AI 聊天测试接口
-	api.GET("/ai/chat/test", controllers.TestStreamChat) // 测试 AI 聊天流式响应（直接构造请求示例）
+	api.GET("/ai/chat/test", controllers.TestStreamChat)          // 测试 AI 聊天流式响应（直接构造请求示例）
+	api.GET("/ai/chat/test-title", controllers.TestGenerateTitle) // 测试会话标题生成
 
 	// --- 需要认证才能访问的路由 ---
 	authed := api.Group("/")
 	authed.Use(middlewares.AuthMiddleware())
 	{
+		// AI 会话接口
+		authed.POST("/ai/chat/sessions", controllers.CreateAISession)
+		authed.GET("/ai/chat/sessions", controllers.GetAISessions)
+		authed.PUT("/ai/chat/sessions", controllers.UpdateAISession)
+
 		// 通用接口
 		authed.GET("/comment/:commentId", controllers.GetSingleComment)    // 获取单条评论
 		authed.GET("/user/:user_id", controllers.GetProfile)               // 查看个人主页
