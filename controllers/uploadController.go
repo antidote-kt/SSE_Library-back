@@ -3,6 +3,7 @@ package controllers
 import (
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/antidote-kt/SSE_Library-back/config"
@@ -144,6 +145,12 @@ func UploadDocument(c *gin.Context) {
 		response.Fail(c, http.StatusInternalServerError, nil, constant.DocumentCreateFail)
 		return
 	}
+
+	// 文档存入rag知识库学习
+	ComFileurl := utils.GetFileURL(fileURL)
+	log.Printf("文档网址: %s", ComFileurl)
+	LearnDocument(int(document.ID), ComFileurl)
+
 	responseData := gin.H{
 		"documentId": document.ID,
 	}

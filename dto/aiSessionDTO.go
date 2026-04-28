@@ -9,3 +9,9 @@ type UpdateAISessionDTO struct {
 	ID     uint64 `json:"id" binding:"required"`
 	Title  string `json:"title,omitempty"`
 }
+
+type SendMessageRequest struct {
+	UserID  uint64 `json:"userId" binding:"required"`
+	Content string `json:"question" binding:"required"`
+	IsThink bool   `json:"isThink"`
+}

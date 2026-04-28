@@ -43,6 +43,7 @@ func initCOSClient() {
 			SecretKey: secretKey,
 		},
 	})
+	log.Println("COS 客户端初始化成功")
 }
 
 // 获取COS客户端实例

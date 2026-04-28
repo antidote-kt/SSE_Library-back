@@ -90,7 +90,7 @@ func processStreamResponse(ctx context.Context, resp *http.Response, dataChan ch
 			line = strings.TrimPrefix(line, "data: ")
 		}
 
-		// 跳过结束标记
+		// 遇到结束标记，发送已收集的内容并返回
 		if line == "[DONE]" {
 			dataChan <- "[END_OF_STREAM]"
 			resultChan <- &StreamResult{

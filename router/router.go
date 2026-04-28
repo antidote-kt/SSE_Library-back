@@ -31,6 +31,7 @@ func SetupRouter() *gin.Engine {
 
 		// AI 消息接口
 		authed.POST("/ai/chat/sessions/:sessionId/stop", controllers.CancelAISessionStream)
+		authed.POST("/ai/chat/sessions/:sessionId/messages", controllers.SendAISessionMessages) // 用户发送问题并获取流式输出
 
 		// 通用接口
 		authed.GET("/comment/:commentId", controllers.GetSingleComment)    // 获取单条评论
