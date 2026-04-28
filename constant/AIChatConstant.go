@@ -41,4 +41,5 @@ const (
 	AIMessageStatusSuccess     = "success"     // 已发送
 	AIMessageStatusInterrupted = "interrupted" // 已中断
 	AIMessageStatusFailed      = "failed"      // 发送失败
+	GenerateSessionTitleFailed = "智能生成标题失败"
 )

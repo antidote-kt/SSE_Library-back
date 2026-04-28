@@ -12,6 +12,7 @@ func main() {
 	config.InitRedis()
 	config.InitEmail()
 	go utils.WSManager.Start()
+	utils.InitMilvus()
 	router := router.SetupRouter()
 	router.Run()
 }
