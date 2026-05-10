@@ -28,6 +28,7 @@ func SetupRouter() *gin.Engine {
 		authed.POST("/ai/chat/sessions", controllers.CreateAISession)
 		authed.GET("/ai/chat/sessions", controllers.GetAISessions)
 		authed.PUT("/ai/chat/sessions", controllers.UpdateAISession)
+		authed.DELETE("/ai/chat/sessions/:sessionId", controllers.DeleteAISessions)
 
 		// AI 消息接口
 		authed.POST("/ai/chat/sessions/:sessionId/stop", controllers.CancelAISessionStream)

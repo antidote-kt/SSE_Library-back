@@ -5,9 +5,13 @@ type CreateAISessionDTO struct {
 }
 
 type UpdateAISessionDTO struct {
+	NewTitle  string `json:"newTitle" binding:"required"`
+	UserID    uint64 `json:"userId" binding:"required"`
+	SessionID uint64 `json:"sessionId" binding:"required"`
+}
+
+type DeleteAISessionDTO struct {
 	UserID uint64 `json:"userId" binding:"required"`
-	ID     uint64 `json:"id" binding:"required"`
-	Title  string `json:"title,omitempty"`
 }
 
 type SendMessageRequest struct {
