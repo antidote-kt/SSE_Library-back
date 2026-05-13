@@ -33,6 +33,7 @@ func SetupRouter() *gin.Engine {
 		// AI 消息接口
 		authed.POST("/ai/chat/sessions/:sessionId/stop", controllers.CancelAISessionStream)
 		authed.POST("/ai/chat/sessions/:sessionId/messages", controllers.SendAISessionMessages) // 用户发送问题并获取流式输出
+		authed.POST("/ai/:contentType/:contentId/summary", controllers.PostAISummary)          // 查看/生成摘要（JSON，Redis 缓存）
 		authed.GET("/ai/chat/sessions/:sessionId/messages", controllers.GetAISessionMessages)   // 获取会话历史消息
 
 		// AI推荐书籍接口
@@ -43,6 +44,7 @@ func SetupRouter() *gin.Engine {
 		authed.GET("/user/:user_id", controllers.GetProfile)               // 查看个人主页
 		authed.PUT("/user/:user_id", controllers.ModifyInfo)               // 修改个人资料
 		authed.GET("/document/:id", controllers.GetDocumentByID)           // 获取文档详情
+		authed.POST("/document/:id/summary/stream", controllers.StreamDocumentSummary) // PDF 正文摘要（SSE，StreamChat）
 		authed.GET("/searchdoc", controllers.SearchDocument)               // 搜索文档
 		authed.GET("/documents", controllers.GetDocumentList)              // 获取文档列表
 		authed.PUT("/document", controllers.ModifyDocument)                // 文件信息修改（上传该文件的用户才能修改）

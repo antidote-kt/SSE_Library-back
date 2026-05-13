@@ -137,14 +137,18 @@ func processStreamResponse(ctx context.Context, resp *http.Response, dataChan ch
 
 // StreamChatWithSessionID 处理 SSE 流式响应（有sessionId版本，支持跨请求取消）
 // enableThinking 是否启用思考内容推送
+// customSystem 可选：非空时作为 system 提示词，否则使用默认图书馆助手提示词。
 // 返回值: StreamResult（包含完整内容和思考内容）, error
-func StreamChatWithSessionID(c *gin.Context, sessionId string, messages []Message, enableThinking bool) (*StreamResult, error) {
+func StreamChatWithSessionID(c *gin.Context, sessionId string, messages []Message, enableThinking bool, customSystem ...string) (*StreamResult, error) {
 	// 从配置中读取参数
 	model := viper.GetString("dashscope.model")
 	if model == "" {
 		model = "qwen-plus"
 	}
 	systemPrompt := constant.AIChatSystemPrompt
+	if len(customSystem) > 0 && strings.TrimSpace(customSystem[0]) != "" {
+		systemPrompt = customSystem[0]
+	}
 
 	apiKey := viper.GetString("dashscope.api_key")
 	if apiKey == "" {
@@ -237,11 +241,12 @@ func StreamChatWithSessionID(c *gin.Context, sessionId string, messages []Messag
 
 // StreamChat 处理 SSE 流式响应（无sessionId版本，会生成临时sessionId）
 // enableThinking 是否启用思考内容推送
+// customSystem 可选：非空时覆盖默认 system 提示词（如文档摘要场景）。
 // 返回值: StreamResult（包含完整内容和思考内容）, error
-func StreamChat(c *gin.Context, messages []Message, enableThinking bool) (*StreamResult, error) {
+func StreamChat(c *gin.Context, messages []Message, enableThinking bool, customSystem ...string) (*StreamResult, error) {
 	// 生成临时sessionId
 	tempSessionId := fmt.Sprintf("temp-session-%d", time.Now().UnixNano())
-	return StreamChatWithSessionID(c, tempSessionId, messages, enableThinking)
+	return StreamChatWithSessionID(c, tempSessionId, messages, enableThinking, customSystem...)
 }
 
 // Chat 非流式调用AI模型，返回完整内容

@@ -58,6 +58,11 @@ const (
 	DocumentTagGetFailed        = "文档标签关联查询失败"
 	DocumentIDLack              = "文档ID不能为空"
 	DocumentNotOpen             = "文档状态不是公开的，无法收藏"
+	DocumentSummaryNotPDF       = "仅支持通过 PDF 链接存储的文档生成摘要"
+	DocumentSummaryNoText       = "未能从 PDF 中解析出有效文本"
+	DocumentSummaryAccessDenied = "无权对此文档生成摘要"
+	AISummarySuccess              = "获取摘要成功"
+	AISummaryInvalidContentType   = "contentType 仅支持 document 或 post"
 )
 
 // Tag相关常量
