@@ -261,3 +261,31 @@ func GetDocumentList(isSuggest bool, categoryID *uint64) ([]models.Document, err
 	}
 	return documents, nil
 }
+
+// GetDocumentsByIDs 根据一系列 ID 获取文档列表
+func GetDocumentsByIDs(ids []int64) ([]models.Document, error) {
+	db := config.GetDB()
+	var documents []models.Document
+	if len(ids) == 0 {
+		return documents, nil
+	}
+	err := db.Where("id IN ? AND status = ? AND deleted_at IS NULL", ids, constant.DocumentStatusOpen).Find(&documents).Error
+	if err != nil {
+		return nil, err
+	}
+	return documents, nil
+}
+
+// GetTopReadBooks 获取阅读量最高的 N 本书（用于冷启动）
+func GetTopReadBooks(limit int) ([]models.Document, error) {
+	db := config.GetDB()
+	var documents []models.Document
+	err := db.Where("type = ? AND status = ? AND deleted_at IS NULL", "book", constant.DocumentStatusOpen).
+		Order("read_counts DESC").
+		Limit(limit).
+		Find(&documents).Error
+	if err != nil {
+		return nil, err
+	}
+	return documents, nil
+}
