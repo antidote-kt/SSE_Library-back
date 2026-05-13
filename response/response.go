@@ -23,6 +23,15 @@ func SuccessWithData(ctx *gin.Context, data interface{}, msg string) {
 	})
 }
 
+// SuccessWithDataCodeZero 与 OpenAPI 约定一致：业务成功 code 为 0。
+func SuccessWithDataCodeZero(c *gin.Context, data interface{}, msg string) {
+	c.JSON(http.StatusOK, gin.H{
+		"code":    0,
+		"message": msg,
+		"data":    data,
+	})
+}
+
 func Fail(ctx *gin.Context, httpStatus int, data gin.H, msg string) {
 	Response(ctx, httpStatus, httpStatus, msg, data)
 }
