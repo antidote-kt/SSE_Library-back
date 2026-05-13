@@ -31,14 +31,17 @@ type EmbeddingResponse struct {
 	} `json:"output"`
 }
 
-// 获取文本的向量 (1152 维)
+// 获取文本的向量 (2560 维)
 func GetEmbeddings(texts []string) ([][]float32, error) {
 	apiKey := viper.GetString("dashscope.api_key")
-	url := "https://dashscope.aliyuncs.com/api/v1/services/embeddings/multimodal-embedding/multimodal-embedding"
+	url := viper.GetString("dashscope.embedding_endpoint")
+	if url == "" {
+		url = "https://dashscope.aliyuncs.com/api/v1/services/embeddings/multimodal-embedding/multimodal-embedding"
+	}
 
 	model := viper.GetString("dashscope.embedding_model")
 	if model == "" {
-		model = "tongyi-embedding-vision-plus-2026-03-06"
+		model = "qwen3-vl-embedding"
 	}
 
 	// 将字符串切片转换为 RequestContent结构 （把字符串存入contents中，赋值给请求体）
@@ -52,8 +55,8 @@ func GetEmbeddings(texts []string) ([][]float32, error) {
 	}
 	reqBody.Input.Contents = contents
 
-	// 在 Milvus 中创建的 Collection 是 1152 维的，这里需要显式指定降维
-	reqBody.Parameters.Dimension = 1152
+	// 在 Milvus 中创建的 Collection 是 2560 维的，这里需要显式指定降维
+	reqBody.Parameters.Dimension = 2560
 
 	jsonData, _ := json.Marshal(reqBody)
 	req, _ := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))

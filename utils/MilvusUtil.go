@@ -42,6 +42,27 @@ func InitMilvus() {
 		MilvusClient.CreateIndex(ctx, constant.CollectionName, "vector", idx, false)
 	}
 	MilvusClient.LoadCollection(ctx, constant.CollectionName, false)
+
+	// 初始化书籍推荐集合
+	hasBookColl, _ := MilvusClient.HasCollection(ctx, constant.BookCollectionName)
+	if !hasBookColl {
+		// 定义书籍表结构 Schema
+		bookSchema := entity.NewSchema().WithName(constant.BookCollectionName).WithDescription("Book Recommendation Collection")
+		bookSchema.WithField(entity.NewField().WithName("id").WithDataType(entity.FieldTypeInt64).WithIsAutoID(true).WithIsPrimaryKey(true))
+		bookSchema.WithField(entity.NewField().WithName("book_id").WithDataType(entity.FieldTypeInt64)) // 关联 MySQL 中的书籍 ID
+		bookSchema.WithField(entity.NewField().WithName("content").WithDataType(entity.FieldTypeVarChar).WithMaxLength(65535))
+		bookSchema.WithField(entity.NewField().WithName("vector").WithDataType(entity.FieldTypeFloatVector).WithDim(1152))
+
+		err = MilvusClient.CreateCollection(ctx, bookSchema, entity.DefaultShardNumber)
+		if err != nil {
+			log.Fatalf("Failed to create book collection: %v", err)
+		}
+
+		// 创建索引加速检索 (HNSW 算法)
+		idx, _ := entity.NewIndexHNSW(entity.L2, 8, 96)
+		MilvusClient.CreateIndex(ctx, constant.BookCollectionName, "vector", idx, false)
+	}
+	MilvusClient.LoadCollection(ctx, constant.BookCollectionName, false)
 }
 
 // 插入向量和数据
@@ -100,6 +121,58 @@ func SearchKnowledge(queryVector []float32, topK int) ([]string, error) {
 		contentCol := res.Fields.GetColumn("content").(*entity.ColumnVarChar)
 		for i := 0; i < contentCol.Len(); i++ {
 			results = append(results, contentCol.Data()[i])
+		}
+	}
+	return results, nil
+}
+
+// InsertBookVector 插入单本书籍的向量信息
+func InsertBookVector(bookID int64, content string, vector []float32) error {
+	ctx := context.Background()
+
+	idCol := entity.NewColumnInt64("book_id", []int64{bookID})
+	contentCol := entity.NewColumnVarChar("content", []string{content})
+	vectorCol := entity.NewColumnFloatVector("vector", 1152, [][]float32{vector})
+
+	_, err := MilvusClient.Insert(ctx, constant.BookCollectionName, "", idCol, contentCol, vectorCol)
+	MilvusClient.Flush(ctx, constant.BookCollectionName, false)
+	return err
+}
+
+// SearchBooks 相似度检索推荐书籍ID
+func SearchBooks(queryVector []float32, topK int) ([]int64, error) {
+	ctx := context.Background()
+	sp, _ := entity.NewIndexHNSWSearchParam(74)
+
+	searchResult, err := MilvusClient.Search(
+		ctx, constant.BookCollectionName,
+		[]string{},          // partitions
+		"",                  // expr
+		[]string{"book_id"}, // outputFields: 需要一同返回的标量字段
+		[]entity.Vector{entity.FloatVector(queryVector)},
+		"vector",
+		entity.L2,
+		topK,
+		sp,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("Milvus 书籍搜索失败: %v", err)
+	}
+
+	var results []int64
+	for _, res := range searchResult {
+		if res.ResultCount == 0 {
+			continue
+		}
+
+		column := res.Fields.GetColumn("book_id")
+		if column == nil {
+			continue
+		}
+
+		bookIdCol := res.Fields.GetColumn("book_id").(*entity.ColumnInt64)
+		for i := 0; i < bookIdCol.Len(); i++ {
+			results = append(results, bookIdCol.Data()[i])
 		}
 	}
 	return results, nil

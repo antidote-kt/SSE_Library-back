@@ -62,3 +62,12 @@ func BuildCancelAISessionResponse(sessionId uint64, messageId uint64, status str
 		Status:    status,
 	}
 }
+
+type AIMessageHistoryResponse struct {
+	AISessionId    uint64 `json:"aiSessionId"`
+	AIMessageId    string `json:"aiMessageId"`
+	IsUserSend     bool   `json:"isUserSend"`
+	ChainOfThought string `json:"chainOfThought"`
+	Content        string `json:"content"`
+	State          string `json:"state"`
+}

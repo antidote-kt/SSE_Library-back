@@ -52,7 +52,7 @@ func GetLastAIMessageBySessionID(sessionID uint64) (*models.AIMessage, error) {
 func GetMessagesBySessionId(sessionId uint, limit int) ([]models.AIMessage, error) {
 	var messages []models.AIMessage
 	// 先按时间倒序查出最近的N条，再在内存中或者通过子查询反转为正序（传入 Limit(-1) 会自动忽略 LIMIT SQL 语句，从而查询全部匹配数据）
-	err := config.DB.Where("session_id = ?", sessionId).
+	err := config.DB.Where("ai_sessions_id = ?", sessionId).
 		Order("created_at DESC").
 		Limit(limit).
 		Find(&messages).Error
@@ -72,6 +72,6 @@ func GetMessagesBySessionId(sessionId uint, limit int) ([]models.AIMessage, erro
 // GetMessageCountBySessionId 获取特定会话的消息总数
 func GetMessageCountBySessionId(sessionId uint) (int64, error) {
 	var count int64
-	err := config.DB.Model(&models.AIMessage{}).Where("session_id = ?", sessionId).Count(&count).Error
+	err := config.DB.Model(&models.AIMessage{}).Where("ai_sessions_id = ?", sessionId).Count(&count).Error
 	return count, err
 }
