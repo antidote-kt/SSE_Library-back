@@ -151,6 +151,20 @@ func UploadDocument(c *gin.Context) {
 	log.Printf("文档网址: %s", ComFileurl)
 	LearnDocument(int(document.ID), ComFileurl)
 
+	// 书籍元数据向量化存入 Milvus (用于推荐)
+	if document.Type == "book" {
+		go func() {
+			text := fmt.Sprintf("%s %s %s", document.Name, category.Name, document.Introduction)
+			vectors, err := utils.GetEmbeddings([]string{text})
+			if err == nil && len(vectors) > 0 {
+				utils.InsertBookVector(int64(document.ID), text, vectors[0])
+				log.Printf("书籍 %d 向量化完成", document.ID)
+			} else {
+				log.Printf("书籍向量化失败: %v", err)
+			}
+		}()
+	}
+
 	responseData := gin.H{
 		"documentId": document.ID,
 	}
