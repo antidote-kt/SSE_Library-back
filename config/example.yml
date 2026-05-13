@@ -39,3 +39,7 @@ dashscope:
   api_key:
   model:
   endpoint: https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions
+  embedding_model: tongyi-embedding-vision-plus-2026-03-06
+
+milvus:
+  address: "localhost:19530"

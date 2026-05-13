@@ -3,6 +3,7 @@ package dao
 import (
 	"github.com/antidote-kt/SSE_Library-back/config"
 	"github.com/antidote-kt/SSE_Library-back/models"
+	"gorm.io/gorm"
 )
 
 func CreateAISession(aiSession *models.AISession) error {
@@ -29,4 +30,17 @@ func GetAISessionsByUserID(userID uint64) ([]models.AISession, error) {
 func UpdateAISession(aiSession *models.AISession) error {
 	db := config.GetDB()
 	return db.Save(aiSession).Error
+}
+
+func DeleteAISession(aiSession *models.AISession) error {
+	db := config.GetDB()
+	return db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("ai_sessions_id = ?", aiSession.ID).Delete(&models.AIMessage{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Delete(aiSession).Error; err != nil {
+			return err
+		}
+		return nil
+	})
 }

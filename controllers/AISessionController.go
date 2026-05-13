@@ -98,7 +98,7 @@ func UpdateAISession(c *gin.Context) {
 		return
 	}
 
-	aiSession, err := dao.GetAISessionByID(req.ID)
+	aiSession, err := dao.GetAISessionByID(req.SessionID)
 	if err != nil {
 		response.Fail(c, http.StatusNotFound, nil, constant.AISessionNotExist)
 		return
@@ -109,15 +109,60 @@ func UpdateAISession(c *gin.Context) {
 		return
 	}
 
-	if req.Title != "" {
-		aiSession.Title = req.Title
-	}
+	aiSession.Title = req.NewTitle
 
 	if err := dao.UpdateAISession(&aiSession); err != nil {
 		response.Fail(c, http.StatusInternalServerError, nil, constant.UpdateAISessionFailed)
 		return
 	}
 
-	aiSessionResponse := response.BuildAISessionListItemResponse(aiSession)
-	response.SuccessWithData(c, aiSessionResponse, constant.UpdateAISessionSuccess)
+	// aiSessionResponse := response.BuildAISessionListItemResponse(aiSession)
+	// response.SuccessWithData(c, aiSessionResponse, constant.UpdateAISessionSuccess)
+	response.Success(c, nil, constant.UpdateAISessionSuccess)
+}
+
+func DeleteAISessions(c *gin.Context) {
+	sessionIdStr := c.Param("sessionId")
+	sessionId, err := strconv.ParseUint(sessionIdStr, 10, 64)
+	if err != nil {
+		response.Fail(c, http.StatusBadRequest, nil, constant.ParamParseError)
+		return
+	}
+
+	var req dto.DeleteAISessionDTO
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Fail(c, http.StatusBadRequest, nil, constant.ParamParseError)
+		return
+	}
+
+	claims, exists := c.Get(constant.UserClaims)
+	if !exists {
+		response.Fail(c, http.StatusUnauthorized, nil, constant.GetUserInfoFailed)
+		return
+	}
+
+	userClaims := claims.(*utils.MyClaims)
+
+	if userClaims.UserID != req.UserID {
+		response.Fail(c, http.StatusUnauthorized, nil, constant.NonSelf)
+		return
+	}
+
+	aiSession, err := dao.GetAISessionByID(sessionId)
+	if err != nil {
+		response.Fail(c, http.StatusNotFound, nil, constant.AISessionNotExist)
+		return
+	}
+
+	if userClaims.UserID != aiSession.UserID {
+		response.Fail(c, http.StatusUnauthorized, nil, constant.NonSelf)
+		return
+	}
+
+	if err := dao.DeleteAISession(&aiSession); err != nil {
+		response.Fail(c, http.StatusInternalServerError, nil, constant.DeleteAISessionFailed)
+		return
+	}
+
+	response.Success(c, nil, constant.DeleteAISessionSuccess)
 }
