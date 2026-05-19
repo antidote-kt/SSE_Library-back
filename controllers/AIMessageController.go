@@ -81,9 +81,10 @@ func TestStreamChat(c *gin.Context) {
 	fmt.Println("====================")
 	// 持久化 AI 的回复
 	aiMsg := &models.AIMessage{
-		AISessionsID: 80000,
-		Role:         "assistant",
-		Content:      result.Content,
+		AISessionsID:    80000,
+		Role:            "assistant",
+		Content:         result.Content,
+		ThinkingContent: result.ThinkingContent,
 	}
 	err = dao.CreateAIMessage(aiMsg)
 	if err != nil {
@@ -203,7 +204,6 @@ func SendAISessionMessages(c *gin.Context) {
 	if count == 0 {
 		isFirstMessage = true
 	}
-	// 补充逻辑：如果是当前对话的第一条消息，则根据用户输入智能修改标题
 	if isFirstMessage {
 		session, err := dao.GetAISessionByID(sessionId)
 		if err != nil {
@@ -290,7 +290,7 @@ func SendAISessionMessages(c *gin.Context) {
 			)
 		}
 	} else {
-		fmt.Printf("[RAG Warning] 问题向量化失败: %v\n", err)
+		fmt.Printf("[RAG Warning] 问题 “%s” 向量化失败: %v\n", req.Content, err)
 	}
 
 	// 6. 将增强后的问题作为最后一条 message 发给 AI
@@ -315,9 +315,10 @@ func SendAISessionMessages(c *gin.Context) {
 
 	// 8. 保存 AI 完整回复
 	aiMsg := &models.AIMessage{
-		AISessionsID: sessionId,
-		Role:         "assistant",
-		Content:      streamResult.Content,
+		AISessionsID:    sessionId,
+		Role:            "assistant",
+		Content:         streamResult.Content,
+		ThinkingContent: streamResult.ThinkingContent,
 	}
 	// 持久化 AI 的回复
 	err = dao.CreateAIMessage(aiMsg)
@@ -325,4 +326,57 @@ func SendAISessionMessages(c *gin.Context) {
 		fmt.Printf("保存 AI 回复失败: %v\n", err)
 		return
 	}
+}
+
+// GetAISessionMessages 获取特定会话的历史消息
+func GetAISessionMessages(c *gin.Context) {
+	// 1. 获取 URL 路径中的 sessionId
+	sessionIdStr := c.Param("sessionId")
+	sessionId, err := strconv.ParseUint(sessionIdStr, 10, 64)
+	if err != nil {
+		response.Fail(c, http.StatusBadRequest, nil, constant.ParamParseError)
+		return
+	}
+
+	// 2. 验证用户身份一致性
+	claims, exists := c.Get(constant.UserClaims)
+	if !exists {
+		response.Fail(c, http.StatusUnauthorized, nil, constant.GetUserInfoFailed)
+		return
+	}
+	userClaims := claims.(*utils.MyClaims)
+
+	// 验证请求的用户是否拥有该会话
+	session, err := dao.GetAISessionByID(sessionId)
+	if err != nil {
+		response.Fail(c, http.StatusInternalServerError, nil, constant.DatabaseError)
+		return
+	}
+	if session.UserID != userClaims.UserID {
+		response.Fail(c, http.StatusUnauthorized, nil, constant.NonSelf)
+		return
+	}
+
+	// 3. 获取所有历史记录
+	messages, err := dao.GetMessagesBySessionId(uint(sessionId), -1)
+	if err != nil {
+		response.Fail(c, http.StatusInternalServerError, nil, constant.DatabaseError)
+		return
+	}
+
+	// 4. 构建响应 DTO
+	resp := make([]response.AIMessageHistoryResponse, 0, len(messages))
+	for _, msg := range messages {
+		resp = append(resp, response.AIMessageHistoryResponse{
+			AISessionId:    msg.AISessionsID,
+			AIMessageId:    strconv.FormatUint(msg.ID, 10),
+			IsUserSend:     msg.Role == "user",
+			ChainOfThought: msg.ThinkingContent,
+			Content:        msg.Content,
+			State:          msg.Status,
+		})
+	}
+
+	// 5. 返回结果
+	response.SuccessWithData(c, gin.H{"data": resp}, "获取历史消息成功")
 }
