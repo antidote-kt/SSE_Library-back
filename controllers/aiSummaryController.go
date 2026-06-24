@@ -68,7 +68,7 @@ func PostAISummary(c *gin.Context) {
 			response.Fail(c, http.StatusBadRequest, nil, constant.DocumentSummaryNotPDF)
 			return
 		}
-		sourceText, err = utils.ExtractDocumentPDFPlainText(doc.URL, documentSummaryMaxRunes)
+		sourceText, err = utils.ExtractDocumentPDFPlainText(utils.GetFileURL(doc.URL), documentSummaryMaxRunes)
 		if err != nil {
 			if errors.Is(err, utils.ErrSummaryEmptyText) {
 				response.Fail(c, http.StatusBadRequest, nil, constant.DocumentSummaryNoText)
