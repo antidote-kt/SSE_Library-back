@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 
 	"github.com/spf13/viper"
@@ -55,8 +56,8 @@ func GetEmbeddings(texts []string) ([][]float32, error) {
 	}
 	reqBody.Input.Contents = contents
 
-	// 在 Milvus 中创建的 Collection 是 2560 维的，这里需要显式指定降维
-	reqBody.Parameters.Dimension = 2560
+	// 在 Milvus 中创建的 Collection 是 1152 维的，这里需要显式指定降维
+	reqBody.Parameters.Dimension = 1152
 
 	jsonData, _ := json.Marshal(reqBody)
 	req, _ := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
@@ -70,13 +71,18 @@ func GetEmbeddings(texts []string) ([][]float32, error) {
 	}
 	defer resp.Body.Close()
 
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %v", err)
+	}
+
 	var result EmbeddingResponse
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, err
+	if err := json.Unmarshal(bodyBytes, &result); err != nil {
+		return nil, fmt.Errorf("json unmarshal failed: %v, raw response: %s", err, string(bodyBytes))
 	}
 
 	if len(result.Output.Embeddings) == 0 {
-		return nil, fmt.Errorf("failed to get embeddings")
+		return nil, fmt.Errorf("failed to get embeddings, raw response: %s", string(bodyBytes))
 	}
 
 	var vectors [][]float32
